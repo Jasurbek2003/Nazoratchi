@@ -1,0 +1,108 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  schedule:
+    - cron: "0 5 * * 1" # haftalik xavfsizlik skaneri (TZ 15.10.1)
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: backend (lint, mypy, test)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      db:
+        image: timescale/timescaledb:2.17.2-pg16
+        env:
+          POSTGRES_DB: nazoratchi
+          POSTGRES_USER: nazoratchi
+          POSTGRES_PASSWORD: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nazoratchi -d nazoratchi"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    env:
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_PASSWORD: ci
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy .
+      - run: uv run pytest --cov --cov-fail-under=70
+
+  prototype-agent:
+    name: prototype agent (lint, mypy, test)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: prototype/agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: prototype/agent/uv.lock
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy .
+      - run: uv run pytest --cov --cov-fail-under=70
+
+  appctl:
+    name: appctl patch (shellcheck, test)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -n deploy/appctl-patches/appctl
+      # SC2034 — asl skriptdagi eski ogohlantirish (for i in ...), o'zgartirilmagan.
+      - run: shellcheck -e SC2034 deploy/appctl-patches/appctl
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run --with pytest pytest deploy/appctl-patches/tests -q
+
+  security:
+    name: security (pip-audit)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: uv run pip-audit
+      - run: uv sync --frozen
+        working-directory: prototype/agent
+      - run: uv run pip-audit
+        working-directory: prototype/agent
+
+  compose:
+    name: compose (konfiguratsiya tekshiruvi)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f deploy/docker-compose.dev.yml config --quiet
+
+# F1 da qo'shiladi: agent (go vet, staticcheck, go test, amd64+arm64), frontend (eslint, tsc, vitest),
+# build (image'lar, SBOM), sign/release (minisign), deploy-prod. Reja: docs/TZ/15-deploy.md 15.10.

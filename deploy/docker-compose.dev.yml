@@ -1,0 +1,35 @@
+name: nazoratchi-dev
+
+# Dev muhiti: faqat baza va Redis. Backend `uv run` bilan mahalliy ishga tushadi (README).
+# Portlar faqat 127.0.0.1 ga bog'langan (TZ 14.7.1).
+services:
+  db:
+    image: timescale/timescaledb:2.17.2-pg16
+    environment:
+      POSTGRES_DB: nazoratchi
+      POSTGRES_USER: nazoratchi
+      POSTGRES_PASSWORD: dev
+    ports:
+      - "127.0.0.1:${DEV_DB_PORT:-5433}:5432"
+    volumes:
+      - nazoratchi_dev_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nazoratchi -d nazoratchi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    shm_size: 256mb
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:${DEV_REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  nazoratchi_dev_pgdata:

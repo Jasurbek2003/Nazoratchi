@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Maxfiy va muhit
+.env
+.env.*
+!.env.example
+*.key
+
+# Node / Go (F1)
+node_modules/
+dist/
+/agent/bin/
+
+# IDE va OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Vaqtinchalik
+*.tmp
+
+# Hujjatning eski versiyalari (diskda qoladi, repoga kirmaydi)
+docs/TZ/eski/

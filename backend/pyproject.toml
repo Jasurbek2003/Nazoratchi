@@ -4,8 +4,12 @@ version = "0.1.0"
 description = "Nazoratchi — infratuzilma monitoringi platformasi (core)"
 requires-python = ">=3.13"
 dependencies = [
+    "argon2-cffi>=23.1",
     "django>=5.2,<5.3",
+    "djangorestframework>=3.15",
     "psycopg[binary]>=3.2",
+    "redis>=5.2",
+    "uvicorn>=0.32",
 ]
 
 [dependency-groups]
@@ -17,6 +21,7 @@ dev = [
     "pytest-django>=4.9",
     "pytest-cov>=6.0",
     "pip-audit>=2.7",
+    "djangorestframework-stubs>=3.15",
 ]
 
 [tool.ruff]
@@ -26,21 +31,23 @@ extend-exclude = ["migrations"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "DJ", "S", "C4", "SIM"]
+# E501: kod uzunligini `ruff format` boshqaradi; uzun izoh/docstring (ko'pincha TZ havolalari) ruxsat etiladi.
+ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101"]
+"tests/*" = ["S101", "S105", "S106"]  # assert va test parollari
 
 [tool.mypy]
 python_version = "3.13"
 strict = true
 exclude = ["/migrations/"]
-plugins = ["mypy_django_plugin.main"]
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 
 [tool.django-stubs]
 django_settings_module = "config.settings.dev"
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "config.settings.dev"
+DJANGO_SETTINGS_MODULE = "config.settings.test"
 testpaths = ["tests"]
 addopts = "--strict-markers"
 

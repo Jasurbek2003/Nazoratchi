@@ -1,4 +1,4 @@
-"""Prototip ko'rinishlari (TZ 9.5). Autentifikatsiya B1 da; shu vaqtgacha faqat DEBUG da ochiq."""
+"""Prototip ko'rinishlari (F0). To'liq, autentifikatsiyali API B4 da; shu vaqtgacha faqat DEBUG da ochiq (/proto/api/...)."""
 
 import uuid
 from collections.abc import Callable

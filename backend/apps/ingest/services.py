@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -41,13 +42,30 @@ class IngestResult:
     reasons: dict[str, int] = field(default_factory=dict)
 
 
-def _series_map(server: Server) -> dict[SeriesKey, int]:
-    return {
+SERIES_CACHE_TTL_S = 60.0
+_series_cache: dict[Any, tuple[float, dict[SeriesKey, int]]] = {}
+
+
+def clear_series_cache() -> None:
+    _series_cache.clear()
+
+
+def _series_map(server: Server, *, use_cache: bool = True) -> dict[SeriesKey, int]:
+    """Server seriyalari (nom, labels_hash) -> id. Jarayon xotirasida 60 s keshlanadi (TZ 6.5.1 qadam 6):
+    har paketda 240 qatorni qayta o'qimaslik uchun. Yangi seriya boshqa jarayonda paydo bo'lsa, ko'pi bilan
+    60 s kechikadi va `bulk_create(ignore_conflicts)` baribir to'qnashuvni hal qiladi."""
+    hit = _series_cache.get(server.pk) if use_cache else None
+    if hit is not None and time.monotonic() - hit[0] < SERIES_CACHE_TTL_S:
+        return hit[1]
+    data = {
         (name, h): pk
         for pk, name, h in Series.objects.filter(server=server).values_list(
             "id", "name", "labels_hash"
         )
     }
+    if use_cache:
+        _series_cache[server.pk] = (time.monotonic(), data)
+    return data
 
 
 def _resolve_series(server: Server, samples: list[Sample], result: IngestResult) -> dict[int, int]:
@@ -76,7 +94,12 @@ def _resolve_series(server: Server, samples: list[Sample], result: IngestResult)
             ],
             ignore_conflicts=True,
         )
-        known = _series_map(server)
+        known = _series_map(server, use_cache=False)
+        # Keshga faqat tranzaksiya COMMIT bo'lgach yoziladi: aks holda rollback bo'lgan seriya idlari
+        # keshda qolib, ma'lumot "yo'q" seriyaga yozilardi.
+        transaction.on_commit(
+            lambda: _series_cache.__setitem__(server.pk, (time.monotonic(), known))
+        )
     mapping: dict[int, int] = {}
     for idx, sample in enumerate(samples):
         pk = known.get((sample.name, labels_hash(sample.labels)))

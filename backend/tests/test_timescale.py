@@ -167,19 +167,19 @@ def test_query_endpoint(client: Client, settings: Any, server: Server) -> None:
         "to": now.isoformat(),
         "labels[mount]": "/",
     }
-    data = client.get("/api/v1/metrics/query", params).json()
+    data = client.get("/proto/api/query", params).json()
     assert data["source"] == "raw" and data["unit"] == "%"
     assert len(data["series"]) == 1 and data["series"][0]["labels"] == {"mount": "/"}
     assert all(v == 42 for _, v in data["series"][0]["points"])
 
     assert (
-        client.get("/api/v1/metrics/query", {**params, "labels[mount]": "/boshqa"}).json()["series"]
+        client.get("/proto/api/query", {**params, "labels[mount]": "/boshqa"}).json()["series"]
         == []
     )
-    assert client.get("/api/v1/metrics/query", {"server_id": "x"}).status_code == 400
-    names = client.get("/api/v1/metrics/names", {"server_id": str(server.id)}).json()
+    assert client.get("/proto/api/query", {"server_id": "x"}).status_code == 400
+    names = client.get("/proto/api/names", {"server_id": str(server.id)}).json()
     assert names["items"][0]["name"] == "fs_used_percent"
-    assert client.get("/api/v1/servers").json()["items"][0]["name"] == "ts-test"
+    assert client.get("/proto/api/servers").json()["items"][0]["name"] == "ts-test"
     assert client.get("/proto/").status_code == 200
 
 
@@ -187,7 +187,7 @@ def test_prototype_endpoints_are_closed_outside_debug(
     client: Client, settings: Any, server: Server
 ) -> None:
     settings.DEBUG = False
-    for url in ("/proto/", "/api/v1/servers", "/api/v1/metrics/names", "/api/v1/metrics/query"):
+    for url in ("/proto/", "/proto/api/servers", "/proto/api/names", "/proto/api/query"):
         assert client.get(url).status_code == 404, url
 
 

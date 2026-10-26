@@ -64,14 +64,14 @@ function el(name, attrs, text) {
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 
 async function loadServers() {
-  const data = await getJSON("/api/v1/servers");
+  const data = await getJSON("/proto/api/servers");
   const sel = $("server"); sel.replaceChildren();
   data.items.forEach((s) => sel.appendChild(option(s.id, s.name)));
   if (data.items.length) await loadNames();
 }
 async function loadNames() {
   const id = $("server").value;
-  const data = await getJSON("/api/v1/metrics/names?server_id=" + encodeURIComponent(id));
+  const data = await getJSON("/proto/api/names?server_id=" + encodeURIComponent(id));
   seriesList = data.items;
   const sel = $("metric"); const prev = sel.value; sel.replaceChildren();
   seriesList.forEach((s, i) => sel.appendChild(option(String(i), s.name + labelText(s.labels))));
@@ -84,7 +84,7 @@ async function draw() {
   const svg = $("chart"); svg.replaceChildren();
   if (!s) { $("meta").textContent = "Ma'lumot yo'q."; return; }
   const to = new Date(), from = new Date(to.getTime() - Number($("range").value) * 1000);
-  let q = "/api/v1/metrics/query?server_id=" + encodeURIComponent($("server").value)
+  let q = "/proto/api/query?server_id=" + encodeURIComponent($("server").value)
         + "&name=" + encodeURIComponent(s.name) + "&from=" + from.toISOString() + "&to=" + to.toISOString();
   for (const k in s.labels) q += "&labels[" + encodeURIComponent(k) + "]=" + encodeURIComponent(s.labels[k]);
   const data = await getJSON(q);

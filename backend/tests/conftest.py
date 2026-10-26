@@ -55,3 +55,14 @@ def count_samples(series_id: int | None = None) -> int:
         row = cursor.fetchone()
     assert row is not None
     return int(row[0])
+
+
+@pytest.fixture(autouse=True)
+def _reset_process_state() -> None:
+    """Testlar orasida jarayon holati (tezlik chegarasi hisoblagichi, series keshi) tozalanadi."""
+    from django.core.cache import cache
+
+    from apps.ingest.services import clear_series_cache
+
+    cache.clear()
+    clear_series_cache()

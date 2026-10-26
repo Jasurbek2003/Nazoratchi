@@ -1,0 +1,45 @@
+--- a/setup.sh
++++ b/setup.sh
+@@ -5,6 +5,7 @@
+ #   sudo bash setup.sh --ufw           # + firewall (22, 80, 443)
+ #   sudo bash setup.sh --fail2ban      # + fail2ban (sshd)
+ #   sudo bash setup.sh --harden-ssh    # + SSH parolsiz (faqat kalit) — authorized_keys bo'lsa
++#   sudo bash setup.sh --heartbeat-url=https://<core>/hb/<TOKEN>   # + Nazoratchi heartbeat (zaxira cron'i)
+ #
+ # Bayroqlarni birgalikda berish mumkin. SSH'ni qattiqlashtirishdan oldin boshqa
+ # terminalda KALIT BILAN kira olishingizni tekshiring.
+@@ -14,12 +15,13 @@
+ 
+ BASE=/opt/applications
+ HERE="$(cd "$(dirname "$0")" && pwd)"
+-DO_UFW=0; DO_F2B=0; DO_SSH=0
++DO_UFW=0; DO_F2B=0; DO_SSH=0; HEARTBEAT_URL="${NAZORATCHI_HEARTBEAT_URL:-}"   # shell tarixida qolmasligi uchun muhitdan ham
+ for a in "$@"; do
+   case "$a" in
+     --ufw) DO_UFW=1 ;;
+     --fail2ban) DO_F2B=1 ;;
+     --harden-ssh) DO_SSH=1 ;;
++    --heartbeat-url=*) HEARTBEAT_URL="${a#--heartbeat-url=}" ;;
+     *) echo "noma'lum bayroq: $a" >&2; exit 1 ;;
+   esac
+ done
+@@ -34,11 +36,19 @@
+ # Ikkinchi serverga zaxira nusxa (kalit bilan kirish kerak), masalan:
+ # OFFSITE=root@38.242.143.248:/root/backups/main-server
+ OFFSITE=""
++# Nazoratchi heartbeat tokeni bu faylda EMAS: setup.sh --heartbeat-url=... uni appctl.secret ga yozadi.
+ EOF
+ 
+ echo "→ appctl"
+ install -m 0755 "$HERE/appctl" /usr/local/bin/appctl
+ 
++if [ -n "$HEARTBEAT_URL" ]; then
++  # Token $BASE/appctl.secret ga (0600) yoziladi, /etc/cron.d ga EMAS (u hamma o'qiy oladi).
++  # Noto'g'ri URL bo'lsa shu yerda to'xtaydi, nginx hali o'zgarmagan.
++  echo "→ Nazoratchi heartbeat"
++  APPCTL_BASE="$BASE" /usr/local/bin/appctl heartbeat-set "$HEARTBEAT_URL"
++fi
++
+ echo "→ nginx: konfiglar $BASE/nginx ichida"
+ INCLUDE=/etc/nginx/conf.d/00-applications.conf
+ moved=()

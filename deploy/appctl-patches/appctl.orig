@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+# appctl — /opt/applications/projects ostidagi docker-compose loyihalarini boshqarish.
+#
+#   appctl list
+#   appctl up|down|restart|ps <loyiha>
+#   appctl logs <loyiha> [servis]
+#   appctl deploy <loyiha>
+#   appctl backup <loyiha>|all
+#   appctl restore <loyiha> <fayl.sql.gz> --yes
+#   appctl nginx            # nginx -t && reload
+#   appctl status
+#
+# Har loyiha papkasida ixtiyoriy `.appctl` fayl bo'lishi mumkin (bash sintaksisi):
+#   DB_SERVICE=db            # compose'dagi postgres servisi (backup/restore uchun)
+#   DB_USER=nazar
+#   DB_NAME=nazar
+#   PROJECT_NAME=nazar       # faqat compose loyiha nomi standartdan farq qilsa
+#   COMPOSE_EXTRA=docker-compose.server.yml   # serverga xos override (portlar va h.k.)
+#   HEALTH_URL=http://127.0.0.1:8020/healthz/
+#   HEALTH_CURL_OPTS='-H Host:nazar.avlo.ai -H X-Forwarded-Proto:https'
+#   BACKUP_PATHS="/var/lib/docker/volumes/x_media/_data"   # haftalik tar.gz
+#
+# Global sozlamalar: /opt/applications/appctl.conf (OFFSITE, KEEP_DAILY, KEEP_WEEKLY).
+set -euo pipefail
+
+BASE="${APPCTL_BASE:-/opt/applications}"
+PROJECTS="$BASE/projects"
+BACKUPS="$BASE/backups"
+OFFSITE=""
+KEEP_DAILY=7
+KEEP_WEEKLY=5
+# shellcheck disable=SC1091
+[ -f "$BASE/appctl.conf" ] && . "$BASE/appctl.conf"
+
+die() { echo "xato: $*" >&2; exit 1; }
+
+compose_file() {
+  local f
+  for f in docker-compose.prod.yml compose.prod.yml docker-compose.yml compose.yml; do
+    if [ -f "$1/$f" ]; then echo "$f"; return 0; fi
+  done
+  return 1
+}
+
+# proj_load <nom> — DIR, FILE va loyihaning .appctl o'zgaruvchilarini o'rnatadi.
+proj_load() {
+  DIR="$PROJECTS/$1"
+  [ -d "$DIR" ] || die "loyiha topilmadi: $1 ($DIR)"
+  FILE="$(compose_file "$DIR")" || die "$1: compose fayl yo'q"
+  PROJECT_NAME=""; DB_SERVICE=""; DB_USER=""; DB_NAME=""
+  HEALTH_URL=""; HEALTH_CURL_OPTS=""; BACKUP_PATHS=""; COMPOSE_EXTRA=""
+  # shellcheck disable=SC1091
+  [ -f "$DIR/.appctl" ] && . "$DIR/.appctl"
+  return 0
+}
+
+dc() {
+  ( cd "$DIR" && docker compose ${PROJECT_NAME:+-p "$PROJECT_NAME"} -f "$FILE" ${COMPOSE_EXTRA:+-f "$COMPOSE_EXTRA"} "$@" )
+}
+
+need() { [ $# -ge 1 ] && [ -n "$1" ] || die "loyiha nomi kerak (appctl list)"; }
+
+cmd_list() {
+  printf '%-24s %-9s %s\n' LOYIHA HOLAT KONTEYNER
+  local d n running total state
+  for d in "$PROJECTS"/*/; do
+    [ -d "$d" ] || continue
+    n="$(basename "$d")"
+    compose_file "${d%/}" >/dev/null 2>&1 || continue
+    proj_load "$n"
+    running="$(dc ps --status running -q 2>/dev/null | wc -l)"
+    total="$(dc ps -a -q 2>/dev/null | wc -l)"
+    if [ "$total" -eq 0 ]; then state="o'chiq"
+    elif [ "$running" -eq "$total" ]; then state="ishlayapti"
+    else state="qisman"; fi
+    printf '%-24s %-9s %s/%s\n' "$n" "$state" "$running" "$total"
+  done
+}
+
+health_check() {
+  [ -n "$HEALTH_URL" ] || return 0
+  local i code
+  echo "→ health check: $HEALTH_URL"
+  for i in $(seq 1 30); do
+    # shellcheck disable=SC2086
+    code="$(curl -sL -o /dev/null -w '%{http_code}' --max-time 5 $HEALTH_CURL_OPTS "$HEALTH_URL" || true)"
+    if [ "$code" = "200" ]; then echo "  OK (200)"; return 0; fi
+    sleep 2
+  done
+  echo "  XATO: oxirgi javob $code" >&2
+  return 1
+}
+
+cmd_deploy() {
+  need "${1:-}"; proj_load "$1"
+  if [ -d "$DIR/.git" ]; then
+    echo "→ git pull"
+    git -C "$DIR" pull --ff-only
+  fi
+  echo "→ build + up"
+  dc up -d --build --remove-orphans
+  dc ps
+  health_check
+}
+
+backup_one() {
+  proj_load "$1"
+  local out="$BACKUPS/$1" ts f
+  ts="$(date +%Y%m%d-%H%M%S)"
+  mkdir -p "$out/daily" "$out/weekly"
+
+  if [ -n "$DB_SERVICE" ]; then
+    f="$out/daily/$1-$ts.sql.gz"
+    echo "[$1] pg_dump → $f"
+    if dc exec -T "$DB_SERVICE" pg_dump -U "$DB_USER" -d "$DB_NAME" | gzip > "$f.tmp" \
+       && [ "$(stat -c %s "$f.tmp")" -gt 1024 ]; then
+      mv "$f.tmp" "$f"
+      [ "$(date +%u)" = "7" ] && cp "$f" "$out/weekly/"
+    else
+      rm -f "$f.tmp"
+      echo "[$1] XATO: dump muvaffaqiyatsiz" >&2
+      return 1
+    fi
+  else
+    echo "[$1] DB_SERVICE yo'q — baza dumpi o'tkazib yuborildi"
+  fi
+
+  if [ -n "$BACKUP_PATHS" ] && [ "$(date +%u)" = "7" ]; then
+    f="$out/weekly/$1-files-$ts.tar.gz"
+    echo "[$1] fayllar → $f"
+    # shellcheck disable=SC2086
+    tar -czf "$f" $BACKUP_PATHS
+  fi
+
+  find "$out/daily" -type f -mtime +"$KEEP_DAILY" -delete
+  find "$out/weekly" -type f -mtime +"$((KEEP_WEEKLY * 7))" -delete
+}
+
+cmd_backup() {
+  need "${1:-}"
+  local d n failed=0
+  if [ "$1" = "all" ]; then
+    for d in "$PROJECTS"/*/; do
+      n="$(basename "$d")"
+      compose_file "${d%/}" >/dev/null 2>&1 || continue
+      backup_one "$n" || failed=1
+    done
+  else
+    backup_one "$1" || failed=1
+  fi
+  if [ -n "$OFFSITE" ]; then
+    echo "→ offsite: $OFFSITE"
+    rsync -a -e "ssh -o BatchMode=yes" "$BACKUPS/" "$OFFSITE/" || failed=1
+  fi
+  return "$failed"
+}
+
+cmd_restore() {
+  need "${1:-}"; proj_load "$1"
+  local file="${2:-}" yes="${3:-}"
+  [ -f "$file" ] || die "dump fayl topilmadi: $file"
+  [ -n "$DB_SERVICE" ] || die "$1: .appctl da DB_SERVICE yo'q"
+  [ "$yes" = "--yes" ] || die "bu '$DB_NAME' bazasini O'CHIRIB qayta yaratadi. Tasdiqlash: appctl restore $1 $file --yes"
+  echo "→ baza bilan ishlamaydigan servislarni to'xtatish"
+  dc up -d "$DB_SERVICE"
+  # shellcheck disable=SC2046
+  dc stop $(dc config --services | grep -vx "$DB_SERVICE") || true
+  echo "→ bazani qayta yaratish"
+  dc exec -T "$DB_SERVICE" psql -U "$DB_USER" -d postgres \
+    -c "DROP DATABASE IF EXISTS \"$DB_NAME\" WITH (FORCE)" \
+    -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\""
+  echo "→ dump yuklanmoqda"
+  gunzip -c "$file" | dc exec -T "$DB_SERVICE" psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -q
+  echo "→ servislarni ishga tushirish"
+  dc up -d
+  health_check
+}
+
+cmd_nginx() { nginx -t && systemctl reload nginx && echo "nginx qayta yuklandi"; }
+
+cmd_status() {
+  echo "== Disk";  df -h / | tail -n 1
+  echo "== Xotira"; free -h | sed -n 2p
+  echo "== Konteynerlar"; docker ps --format 'table {{.Names}}\t{{.Status}}'
+  echo "== Sertifikatlar (qolgan kun)"
+  local c exp days
+  for c in /etc/letsencrypt/live/*/cert.pem; do
+    [ -f "$c" ] || continue
+    exp="$(openssl x509 -enddate -noout -in "$c" | cut -d= -f2)"
+    days=$(( ( $(date -d "$exp" +%s) - $(date +%s) ) / 86400 ))
+    printf '  %-34s %4s kun\n' "$(basename "$(dirname "$c")")" "$days"
+  done
+  echo "== Oxirgi zaxiralar"
+  local f
+  for f in "$BACKUPS"/*/daily; do
+    [ -d "$f" ] || continue
+    printf '  %-24s %s\n' "$(basename "$(dirname "$f")")" \
+      "$(find "$f" -type f -printf '%TY-%Tm-%Td %TH:%TM\n' | sort | tail -n 1)"
+  done
+}
+
+usage() { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+
+cmd="${1:-}"; [ $# -gt 0 ] && shift || true
+case "$cmd" in
+  list)    cmd_list ;;
+  up)      need "${1:-}"; proj_load "$1"; dc up -d ;;
+  down)    need "${1:-}"; proj_load "$1"; dc down ;;
+  restart) need "${1:-}"; proj_load "$1"; dc restart ;;
+  ps)      need "${1:-}"; proj_load "$1"; dc ps ;;
+  logs)    need "${1:-}"; proj_load "$1"; n="$1"; shift; dc logs -f --tail 100 "$@" ;;
+  deploy)  cmd_deploy "${1:-}" ;;
+  backup)  cmd_backup "${1:-}" ;;
+  restore) cmd_restore "${1:-}" "${2:-}" "${3:-}" ;;
+  nginx)   cmd_nginx ;;
+  status)  cmd_status ;;
+  *)       usage ;;
+esac

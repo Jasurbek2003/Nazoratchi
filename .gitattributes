@@ -1,0 +1,5 @@
+# Qator oxiri: hamma matn LF (bash skriptlar Windows'da CRLF bo'lib buzilmasligi uchun)
+* text=auto eol=lf
+*.docx binary
+*.pdf binary
+*.png binary

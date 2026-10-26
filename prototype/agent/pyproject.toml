@@ -1,0 +1,32 @@
+[project]
+name = "nazoratchi-proto-agent"
+version = "0.1.0"
+description = "Nazoratchi prototip agenti (F0, Python/psutil). F1 da Go agent bilan almashtiriladi."
+requires-python = ">=3.13"
+dependencies = ["psutil>=6.1"]
+
+[dependency-groups]
+dev = ["ruff>=0.8", "mypy>=1.13", "pytest>=8.3", "pytest-cov>=6.0", "types-psutil"]
+
+[project.scripts]
+nazoratchi-proto-agent = "proto_agent.main:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "C4", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S106"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["proto_agent"]

@@ -1,0 +1,71 @@
+/*
+ * Nazoratchi rang va o'lcham tokenlari (TZ 13.4.3).
+ * Har token `light-dark(yorug', qorong'i)` ko'rinishida: bitta e'lon ikkala mavzuni qamraydi.
+ * Mavzu: tizim sozlamasi (`color-scheme: light dark`) + qo'lda almashtirish (`data-theme` = light | dark).
+ *
+ * `--*-fg` — shu holatning MATN varianti (kontrast >= 4.5:1, test: src/test/contrast.test.ts).
+ * TZ dagi asosiy ranglar (`--ok`, `--warning` ...) belgi, chegara va to'ldirish uchun; matn uchun `-fg`.
+ */
+:root {
+  color-scheme: light dark;
+
+  --bg: light-dark(#f2f4f7, #0d1115);
+  --surface: light-dark(#ffffff, #161b21);
+  --surface-2: light-dark(#f7f8fa, #1b2128);
+  --text: light-dark(#14181d, #e6e9ed);
+  --muted: light-dark(#4f5a66, #9aa4af);
+  --border: light-dark(#d6dce3, #29313a);
+  --border-strong: light-dark(#aeb8c3, #3d4753);
+
+  --ok: light-dark(#1f9d55, #3ccf7a);
+  --warning: light-dark(#c28400, #f0b429);
+  --high: light-dark(#d9622b, #ff8a50);
+  --critical: light-dark(#cf2e2e, #ff5c5c);
+  --unknown: light-dark(#7a828c, #8b95a1);
+  --info: light-dark(#2b6fd6, #5c9dff);
+
+  --ok-bg: light-dark(#e7f6ed, #12301f);
+  --warning-bg: light-dark(#fdf3d9, #3a2e0c);
+  --high-bg: light-dark(#fde9df, #3d2112);
+  --critical-bg: light-dark(#fbe5e5, #3d1616);
+  --unknown-bg: light-dark(#eceff2, #232a32);
+  --info-bg: light-dark(#e4eefc, #14263f);
+
+  --ok-fg: light-dark(#11693a, #5ee0a0);
+  --warning-fg: light-dark(#7a5200, #f6c453);
+  --high-fg: light-dark(#a8430f, #ff9d6c);
+  --critical-fg: light-dark(#a81f1f, #ff7b7b);
+  --unknown-fg: light-dark(#4f5a66, #9aa4af);
+  --info-fg: light-dark(#1c58b8, #7db1ff);
+
+  --accent: light-dark(#3552d6, #8da2ff);
+  --accent-fg: light-dark(#ffffff, #0d1115);
+  --accent-soft: light-dark(#e8ecfc, #1c2440);
+  --focus: light-dark(#3552d6, #9fb1ff);
+
+  --rail: #0f1722;
+  --rail-text: #c5cfdb;
+  --rail-muted: #8593a3;
+  --rail-active: #1c2a3d;
+  --rail-border: #223044;
+
+  /* Grafik (dataviz: kategorik 1-2 slot, mavzuga moslangan) */
+  --series-1: light-dark(#2a78d6, #3987e5);
+  --series-2: light-dark(#eb6834, #d95926);
+  --series-3: light-dark(#1baf7a, #199e70);
+  --series-4: light-dark(#eda100, #c98500);
+  --chart-grid: light-dark(#e3e7ec, #262e37);
+  --chart-gap: light-dark(#e9ecf0, #222a33);
+
+  --radius: 6px;
+  --radius-lg: 10px;
+  --font-sans: "IBM Plex Sans Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}

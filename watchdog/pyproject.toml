@@ -1,0 +1,31 @@
+[project]
+name = "nazoratchi-watchdog"
+version = "0.1.0"
+description = "Nazoratchi core tirikligini tashqaridan tekshiruvchi kichik xizmat (FR-SYS-002, ADR-014)"
+requires-python = ">=3.11"
+# Runtime bog'liqlik YO'Q: faqat standart kutubxona.
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.10"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "C4", "SIM"]
+# E501: kod uzunligini `ruff format` boshqaradi.
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106", "S310"]  # assert, test tokenlari, urlopen
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--strict-markers"

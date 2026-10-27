@@ -97,6 +97,26 @@ jobs:
       - run: uv run pip-audit
         working-directory: prototype/agent
 
+  backend-image:
+    name: backend image (build)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: false
+          load: true
+          tags: nazoratchi-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: image ichida django check
+        run: >-
+          docker run --rm -e SECRET_KEY=ci-only-not-secret-ci-only-not-secret-ci-only-0123456789
+          -e ALLOWED_HOSTS=nazoratchi.example.uz -e DB_PASSWORD=ci -e REDIS_URL=redis://redis:6379/0
+          nazoratchi-backend:ci python manage.py check
+
   compose:
     name: compose (konfiguratsiya tekshiruvi)
     runs-on: ubuntu-24.04

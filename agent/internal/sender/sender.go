@@ -260,3 +260,32 @@ func Enroll(ctx context.Context, coreURL, caFile string, timeout time.Duration, 
 	}
 	return &out, nil
 }
+
+// ---- goodbye (FR-AGT-013) ----
+
+// Goodbye `nazoratchi-agent uninstall` paytida core'ga hostni arxivlash haqida xabar beradi
+// (`POST /ingest/v1/goodbye`, Bearer token). Muvaffaqiyat faqat HTTP 200.
+func Goodbye(ctx context.Context, coreURL, caFile, token, version string) error {
+	hc, err := newHTTPClient(caFile, 10*time.Second)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		strings.TrimRight(coreURL, "/")+"/ingest/v1/goodbye", strings.NewReader("{}"))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Nazoratchi-Agent", "nazoratchi-agent/"+version)
+	resp, err := hc.Do(req)
+	if err != nil {
+		return errors.New(redact(err, token))
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("core HTTP %d javob berdi", resp.StatusCode)
+	}
+	return nil
+}

@@ -186,3 +186,37 @@ func TestBadCAFile(t *testing.T) {
 		t.Fatal("ca_file yo'q bo'lsa xato kerak")
 	}
 }
+
+func TestGoodbye(t *testing.T) {
+	var gotAuth, gotPath, gotMethod string
+	status := http.StatusOK
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth, gotPath, gotMethod = r.Header.Get("Authorization"), r.URL.Path, r.Method
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	if err := Goodbye(context.Background(), srv.URL, "", "agt_secret", "1.0.0"); err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodPost || gotPath != "/ingest/v1/goodbye" || gotAuth != "Bearer agt_secret" {
+		t.Fatalf("noto'g'ri so'rov: %s %s %q", gotMethod, gotPath, gotAuth)
+	}
+
+	status = http.StatusUnauthorized
+	err := Goodbye(context.Background(), srv.URL, "", "agt_secret", "1.0.0")
+	if err == nil || !strings.Contains(err.Error(), "401") {
+		t.Fatalf("401 xato bo'lishi kerak: %v", err)
+	}
+}
+
+func TestGoodbyeNetworkErrorHidesToken(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	url := srv.URL
+	srv.Close()
+	err := Goodbye(context.Background(), url, "", "agt_secret", "1.0.0")
+	if err == nil || strings.Contains(err.Error(), "agt_secret") {
+		t.Fatalf("xato bo'lishi va token oshkor bo'lmasligi kerak: %v", err)
+	}
+}

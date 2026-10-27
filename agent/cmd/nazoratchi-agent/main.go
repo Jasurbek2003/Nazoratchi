@@ -5,6 +5,7 @@
 //	nazoratchi-agent check-config [--config yo'l]
 //	nazoratchi-agent collect                         # bir martalik yig'ish (diagnostika), JSON
 //	nazoratchi-agent beat <job> [--dir /var/lib/nazoratchi/heartbeats]  # cron oxirida: heartbeat yozadi
+//	nazoratchi-agent uninstall [--config yo'l] [--purge] [--yes]   # agentni o'chirish (FR-AGT-013)
 //	nazoratchi-agent version
 package main
 
@@ -50,14 +51,23 @@ func main() {
 		err = cmdCheckConfig(args, os.Stdout)
 	case "beat":
 		err = cmdBeat(args, os.Stdout)
+	case "uninstall":
+		err = cmdUninstall(args, os.Stdout)
 	case "collect":
 		err = cmdCollect(os.Stdout)
 	case "version":
 		fmt.Printf("nazoratchi-agent %s (%s, %s/%s)\n", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	default:
-		err = fmt.Errorf("noma'lum buyruq %q (run, enroll, check-config, collect, beat, version)", cmd)
+		err = fmt.Errorf("noma'lum buyruq %q (run, enroll, check-config, collect, beat, uninstall, version)", cmd)
 	}
 	if err != nil {
+		var ee *exitError
+		if errors.As(err, &ee) {
+			if ee.Msg != "" {
+				fmt.Fprintln(os.Stderr, ee.Msg)
+			}
+			os.Exit(ee.Code)
+		}
 		fmt.Fprintln(os.Stderr, "xato:", err)
 		os.Exit(1)
 	}

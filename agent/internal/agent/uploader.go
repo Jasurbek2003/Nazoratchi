@@ -26,7 +26,8 @@ type Uploader struct {
 	self   *Self
 	now    func() time.Time
 	rnd    func() float64
-	fails  int // ketma-ket muvaffaqiyatsizliklar (backoff uchun)
+	fails  int  // ketma-ket muvaffaqiyatsizliklar (backoff uchun)
+	sentOK bool // birinchi muvaffaqiyatli paket Info darajasida qayd etilgan (install.sh kutadi)
 	unauth int
 	next   time.Time // shu vaqtgacha urinilmaydi
 }
@@ -69,6 +70,10 @@ func (u *Uploader) Flush(ctx context.Context) time.Duration {
 			u.fails, u.unauth = 0, 0
 			if t, err := time.Parse(time.RFC3339Nano, res.Resp.ServerTime); err == nil {
 				u.self.ClockSkew(t, res.ReceivedAt)
+			}
+			if !u.sentOK {
+				u.sentOK = true
+				u.log.Info("paket yuborildi (birinchi)", "batch_id", batch.BatchID)
 			}
 			u.log.Debug("paket yuborildi", "batch_id", batch.BatchID, "accepted", res.Resp.Accepted, "rejected", res.Resp.Rejected)
 			if res.Resp.ClockSkew {

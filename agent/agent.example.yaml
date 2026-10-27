@@ -1,0 +1,24 @@
+# /etc/nazoratchi/agent.yaml (egasi root:nazoratchi, rejim 0640). TZ 7.6.
+# Bo'sh qoldirilgan kalitlar standart qiymat bilan to'ladi; faqat `core.url` majburiy.
+# Doimiy token bu faylda EMAS: /etc/nazoratchi/token (0600), `nazoratchi-agent enroll` yozadi.
+core:
+  url: https://nazoratchi.example.uz    # https majburiy (faqat localhost uchun http ruxsat)
+  ca_file: ""                           # ixtiyoriy: o'zi imzolagan CA
+  timeout: 10s
+  token_file: /etc/nazoratchi/token
+host:
+  name: ""                              # bo'sh bo'lsa hostname
+
+# Faqat system, disk, net amalga oshirilgan (S2). Qolganlari sozlanishi mumkin, lekin hozircha
+# ishga tushmaydi (agent buni boshlanishda xabar qiladi): diskio, docker, systemd, backup, certs, ssh, apt.
+collectors:
+  system: { enabled: true, interval: 15s }          # 5s..60s
+  disk:   { enabled: true, interval: 30s, ignore_fstypes: [tmpfs, overlay, squashfs, devtmpfs] }
+  net:    { enabled: true, interval: 15s, ignore_ifaces: ["lo", "veth*", "br-*", "docker0"] }
+
+queue:
+  dir: /var/lib/nazoratchi/queue
+  max_bytes: 20971520                   # 20 MB
+  max_age: 15m
+log:
+  level: info                           # debug | info | warn | error

@@ -48,6 +48,36 @@ def answer_callback(bot_token: str, callback_id: str, text: str) -> None:
         raise TelegramError(f"HTTP {response.status_code}", retryable=response.status_code >= 500)
 
 
+def send_document(
+    bot_token: str, chat_id: int | str, filename: str, data: bytes, caption: str = ""
+) -> Sent:
+    """Fayl yuboradi (o'z zaxirasi). Bot API chegarasi 50 MB: chaqiruvchi bo'laklaydi. Token xatoda ko'rinmaydi."""
+    url = f"{settings.TELEGRAM_API_BASE}/bot{bot_token}/sendDocument"
+    try:
+        with make_client() as client:
+            response = client.post(
+                url,
+                data={"chat_id": str(chat_id), "caption": caption[:900]},
+                files={"document": (filename, data, "application/octet-stream")},
+            )
+    except httpx.HTTPError as exc:
+        raise TelegramError(
+            f"tarmoq xatosi: {_redact(type(exc).__name__ + ': ' + str(exc), bot_token)}",
+            retryable=True,
+        ) from None
+    try:
+        body = response.json()
+    except ValueError:
+        body = {}
+    if response.status_code == 200 and body.get("ok"):
+        return Sent(str(body.get("result", {}).get("message_id", "")))
+    description = _redact(str(body.get("description", "")), bot_token)[:200]
+    raise TelegramError(
+        f"HTTP {response.status_code}: {description}",
+        retryable=response.status_code >= 500 or response.status_code == 429,
+    )
+
+
 def send_message(
     bot_token: str,
     chat_id: int | str,

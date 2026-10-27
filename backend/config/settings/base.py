@@ -2,6 +2,7 @@
 
 import base64
 import os
+import re
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -41,6 +42,26 @@ NAZORATCHI_MASTER_KEY = master_key(
     env("NAZORATCHI_MASTER_KEY")
 )  # kanal sirlarini shifrlash (TZ 14.6)
 TELEGRAM_API_BASE = env("TELEGRAM_API_BASE", "https://api.telegram.org").rstrip("/")
+# --- S7: o'zini kuzatish va tarqatish ---
+WATCHDOG_URL = env("WATCHDOG_URL", "")  # https://<domen>/ping/<id>; bo'sh = ping yo'q (FR-SYS-002)
+METRICS_TOKEN = env("METRICS_TOKEN", "")  # bo'sh = /metrics faqat loopback'dan
+NAZORATCHI_BACKUP_AGE_PUBKEY = env(
+    "NAZORATCHI_BACKUP_AGE_PUBKEY", ""
+)  # age1... ochiq kalit (NFR-SEC-010); maxfiy kalit — Owner'da
+SELF_BACKUP_PART_BYTES = int(
+    env("SELF_BACKUP_PART_BYTES", str(45 * 1024 * 1024))
+)  # Telegram Bot API 50 MB chegarasi
+AGENT_DIST_DIR = env("AGENT_DIST_DIR", "/data/agent")  # binar, SHA256SUMS, SHA256SUMS.minisig
+MINISIGN_PUBKEY = env(
+    "MINISIGN_PUBKEY", ""
+)  # agent imzosini tekshirish kaliti; install.sh ga qo'yiladi
+if WATCHDOG_URL and not re.match(r"^(https://|http://(127\.0\.0\.1|localhost)[:/])", WATCHDOG_URL):
+    raise ImproperlyConfigured(
+        "WATCHDOG_URL https:// bilan boshlanishi kerak (maxfiy id ochiq ketmasligi uchun)."
+    )
+AGENT_INSTALL_SCRIPT = env(
+    "AGENT_INSTALL_SCRIPT", str(BASE_DIR.parent / "deploy" / "agent" / "install.sh")
+)
 TELEGRAM_WEBHOOK_SECRET = env(
     "TELEGRAM_WEBHOOK_SECRET", ""
 )  # bo'sh = webhook o'chiq (tugmalar ishlamaydi)
@@ -89,10 +110,11 @@ DATABASES = {
 }
 
 # Kesh Redis tushsa ham ishlaydi (fail-open): tezlik chegarasi va throttling uchun (NFR-REL-004).
+REDIS_URL = env("REDIS_URL")
 CACHES = {
     "default": {
         "BACKEND": "apps.core.cache.FailOpenRedisCache",
-        "LOCATION": env("REDIS_URL"),
+        "LOCATION": REDIS_URL,
         "OPTIONS": {"socket_connect_timeout": 1, "socket_timeout": 1},
     }
 }

@@ -5,6 +5,7 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandParser
 
 from apps.alerts.engine import run_cycle
+from apps.core.watchdog import Pinger
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +20,14 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
+        pinger = Pinger()
         while True:
             started = time.monotonic()
             try:
                 stats = run_cycle()
                 self.stdout.write(f"davr: {stats}")
+                # Ping davr MUVAFFAQIYATLI tugagandan keyin: dvigatel qotsa ping to'xtaydi va watchdog ushlaydi (AL-084).
+                pinger.maybe_ping(force=options["once"])
             except Exception:
                 # Dvigatel hech qachon yiqilmasligi kerak: xato logga, keyingi davrda qayta uriniladi.
                 logger.exception("alert davri muvaffaqiyatsiz")

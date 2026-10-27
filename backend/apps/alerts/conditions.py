@@ -50,6 +50,10 @@ STATE_SOURCES: dict[str, dict[str, type]] = {
     "dns": {"mismatch": bool, "retired": bool},  # S5: DNS tekshiruvi
     # S6: loyiha zaxirasi (agent `backup_*` metrikalari + BackupRun tarixi); faqat expect_daily loyihalar
     "backup": {"age_hours_gt": int, "last_failed": bool, "size_small": bool, "size_large": bool},
+    "self_backup": {
+        "age_hours_gt": int,
+        "failed": bool,
+    },  # S7: Nazoratchi'ning o'z zaxirasi (FR-SYS-003)
 }
 FRESH_MIN_S = 120  # 'last' qiymati shundan eski bo'lsa "ma'lumot yo'q"
 MIN_FORECAST_POINTS = 6
@@ -568,6 +572,8 @@ def _state_other(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
         out.extend(_state_dns(cond, ctx))
     elif source == "backup":
         out.extend(_state_backups(cond, ctx))
+    elif source == "self_backup":
+        out.append(_state_self_backup(cond, ctx))
     else:  # fleet
         servers = [s for s in ctx.servers() if s.status != Server.Status.PAUSED]
         silent = [
@@ -590,6 +596,32 @@ def _state_other(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
 
 
 PROBER_STALL_S = 180
+
+
+def _state_self_backup(cond: dict[str, Any], ctx: Ctx) -> Subject:
+    from apps.backups.models import SelfBackup
+
+    name = "Nazoratchi o'z zaxirasi"
+    latest = SelfBackup.objects.order_by("-created_at").first()
+    last_ok = SelfBackup.objects.filter(status=SelfBackup.Status.OK).order_by("-created_at").first()
+    firing: bool | None
+    if cond["field"] == "failed":
+        firing = None if latest is None else latest.status == SelfBackup.Status.FAILED
+        detail = (
+            f"oxirgi urinish muvaffaqiyatsiz: {latest.error}"
+            if firing and latest
+            else "oxirgi urinish muvaffaqiyatli"
+        )
+    elif last_ok is None:
+        firing, detail = (
+            None,
+            "o'z zaxirasi hali bir marta ham yuborilmagan (yoqilmagan bo'lishi mumkin)",
+        )
+    else:
+        hours = (ctx.now - last_ok.created_at).total_seconds() / 3600
+        firing = hours > cond["equals"]
+        detail = f"oxirgi muvaffaqiyatli o'z zaxirasi {hours:.0f} soat oldin (chegara {cond['equals']} soat)"
+    return Subject("system", "self_backup", name, "system", firing, None, detail)
 
 
 def _state_backups(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:

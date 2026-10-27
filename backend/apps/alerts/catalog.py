@@ -190,6 +190,16 @@ BUILT_IN: list[dict[str, Any]] = [
         "runbook_key": "RB-033", "runbook_hint": "appctl.conf da OFFSITE ni to'ldiring (S-00 dagi rrsync papkasi): zaxira faqat shu serverda",
     },
     {
+        "key": "AL-090", "name": "Nazoratchi o'z zaxirasi eskirdi", "scope": {"type": "system"}, "for_seconds": 0, "severity": "high",
+        "condition": {"type": "state", "source": "self_backup", "field": "age_hours_gt", "equals": 30},
+        "runbook_key": "RB-044", "runbook_hint": "`manage.py self_backup` ni qo'lda ishga tushiring; owner-backup kanali, bot va age kalitini tekshiring",
+    },
+    {
+        "key": "AL-091", "name": "Nazoratchi o'z zaxirasi yuborilmadi", "scope": {"type": "system"}, "for_seconds": 0, "severity": "high",
+        "condition": {"type": "state", "source": "self_backup", "field": "failed", "equals": True},
+        "runbook_key": "RB-044", "runbook_hint": "xato sababi yuqorida: kanal topilmadi, age kaliti yo'q yoki Telegram rad etdi",
+    },
+    {
         "key": "AL-085", "name": "Prober qotdi", "scope": {"type": "system"}, "for_seconds": 0, "severity": "high",
         "condition": {"type": "state", "source": "prober", "field": "stalled", "equals": True},
         "runbook_key": "RB-040", "runbook_hint": "`run_prober` jarayoni ishlayaptimi? loglarni tekshiring",

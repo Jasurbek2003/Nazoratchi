@@ -21,7 +21,7 @@ from django.db import connection
 from apps.heartbeats.models import HeartbeatJob
 from apps.metrics.models import Series, SeriesLatest
 from apps.notifications.models import Channel, Notification
-from apps.probes.models import Probe
+from apps.probes.models import CertStatus, Probe
 from apps.registry.models import Project, Server
 
 MAX_DEPTH = 3
@@ -46,6 +46,8 @@ STATE_SOURCES: dict[str, dict[str, type]] = {
     "fleet": {"mass_silent": bool},
     "probe": {"state": str},  # S4: faol tekshiruv holati (cond.primary — ixtiyoriy filtr)
     "prober": {"stalled": bool},  # AL-085
+    "cert": {"days_left_lte": int, "invalid": bool},  # S5: sertifikat (TLS tekshiruvi)
+    "dns": {"mismatch": bool, "retired": bool},  # S5: DNS tekshiruvi
 }
 FRESH_MIN_S = 120  # 'last' qiymati shundan eski bo'lsa "ma'lumot yo'q"
 MIN_FORECAST_POINTS = 6
@@ -116,6 +118,16 @@ def validate_condition(cond: Any, depth: int = 0, *, nested: bool = False) -> No
         if cond.get("aggregate", "last") not in {*AGGREGATES, "last"}:
             raise ConditionError("aggregate avg, min, max yoki last bo'lishi kerak")
         _num(cond, "window_s", 1, 86400, required=False)
+        if "when" in cond:
+            when = cond["when"]
+            if (
+                not isinstance(when, dict)
+                or set(when) != {"metric", "op", "value"}
+                or when["op"] not in OPS
+            ):
+                raise ConditionError("when {metric, op, value} bo'lishi kerak")
+            _metric(when)
+            _num(when, "value", -1e15, 1e15)
     elif kind == "absent":
         _metric(cond)
         _num(cond, "max_age_s", 10, 86400)
@@ -141,6 +153,10 @@ def validate_condition(cond: Any, depth: int = 0, *, nested: bool = False) -> No
             raise ConditionError(f"field {', '.join(fields)} dan biri bo'lishi kerak")
         if "primary" in cond and not isinstance(cond["primary"], bool):
             raise ConditionError("primary true/false bo'lishi kerak")
+        if expected is int and (
+            isinstance(cond.get("equals"), bool) or not 0 <= cond.get("equals", -1) <= 3650
+        ):
+            raise ConditionError("equals 0..3650 oralig'idagi butun son bo'lishi kerak")
         if not isinstance(cond.get("equals"), expected) or (
             expected is str and cond["equals"] not in ("up", "down")
         ):
@@ -320,8 +336,21 @@ def _threshold(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
     metric, op, limit = cond["metric"], cond["op"], float(cond["value"])
     agg, window = cond.get("aggregate", "last"), int(cond.get("window_s", 60))
     aggs = None if agg == "last" else ctx.window_agg(metric, agg, window)
+    when = cond.get("when")
+    siblings: dict[tuple[Any, str], float] = {}
+    if when:  # shart faqat o'sha seriyaning "hamroh" metrikasi shartni qanoatlantirsa qo'llanadi (masalan, kutilgan konteyner)
+        siblings = {
+            (s.server_id, s.labels_hash): lt.value
+            for s, lt in ctx.series(when["metric"], cond.get("labels"))
+            if _fresh(lt, ctx, 120) is not None
+            and lt is not None
+            and OPS[when["op"]](lt.value, float(when["value"]))
+        }
     out = []
     for s, raw_latest in ctx.series(metric, cond.get("labels")):
+        if when and (s.server_id, s.labels_hash) not in siblings:
+            out.append(_host_subject(s, False, None, f"{when['metric']} sharti bajarilmagan"))
+            continue
         latest = _fresh(raw_latest, ctx, window)
         if latest is None:
             out.append(_host_subject(s, None, None, f"{metric}: yangi ma'lumot yo'q"))
@@ -531,6 +560,10 @@ def _state_other(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
         out.extend(_state_probes(cond, ctx))
     elif source == "prober":
         out.append(_prober_stalled(ctx))
+    elif source == "cert":
+        out.extend(_state_certs(cond, ctx))
+    elif source == "dns":
+        out.extend(_state_dns(cond, ctx))
     else:  # fleet
         servers = [s for s in ctx.servers() if s.status != Server.Status.PAUSED]
         silent = [
@@ -553,6 +586,118 @@ def _state_other(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
 
 
 PROBER_STALL_S = 180
+CERT_STALE_S = (
+    2 * 86400
+)  # sertifikat holati shundan eski bo'lsa "ma'lumot yo'q" (tekshiruv to'xtagan)
+
+
+def _active_project(project: Project | None) -> bool:
+    """Ko'chirilmagan (FR-REG-007) va arxivlangan (FR-REG-006) loyiha tekshiruvlari alert bermaydi."""
+    return project is None or (project.moved and project.status == Project.Status.ACTIVE)
+
+
+def _project_labels(project: Project | None, domain: str) -> dict[str, str]:
+    return {
+        "project_id": str(project.pk) if project else "",
+        "project": project.name if project else "",
+        "domain": domain,
+    }
+
+
+def _state_certs(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
+    out = []
+    for cs in CertStatus.objects.filter(source=CertStatus.Source.PROBE).select_related(
+        "domain__project"
+    ):
+        domain = cs.domain
+        if domain is not None and (
+            domain.status != "active" or not _active_project(domain.project)
+        ):
+            continue
+        project = domain.project if domain else None
+        days_left = int((cs.not_after - ctx.now).total_seconds() // 86400)
+        if (ctx.now - cs.checked_at).total_seconds() > CERT_STALE_S:
+            firing, detail = None, "sertifikat holati eskirgan (tekshiruv ishlamayapti)"
+        elif cond["field"] == "days_left_lte":
+            firing = days_left <= cond["equals"]
+            detail = (
+                f"{cs.name}: {days_left} kun qoldi (tugash {cs.not_after:%Y-%m-%d} UTC)"
+                if days_left >= 0
+                else f"{cs.name}: muddati {-days_left} kun oldin tugagan!"
+            )
+        else:  # invalid
+            problems = [
+                x
+                for x, ok in (
+                    ("zanjir to'liq emas", cs.chain_ok),
+                    ("nom SAN ga mos emas", cs.hostname_ok),
+                )
+                if ok is False
+            ]
+            firing = bool(problems)
+            detail = f"{cs.name}: {', '.join(problems)}" if problems else f"{cs.name}: yaroqli"
+        scope_key = f"project:{project.pk}" if project else f"cert:{cs.pk}"
+        out.append(
+            Subject(
+                "cert",
+                str(cs.pk),
+                cs.name,
+                scope_key,
+                firing,
+                float(days_left),
+                detail,
+                _project_labels(project, cs.name),
+            )
+        )
+    return out
+
+
+def _state_dns(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
+    from apps.probes.services import recent_results
+
+    out = []
+    for probe in Probe.objects.filter(enabled=True, type="dns").select_related("project", "domain"):
+        project: Project | None = probe.project
+        if not _active_project(project):
+            continue
+        last = recent_results(probe.pk, None, None, 1)
+        detail_json = (last[0]["detail"] or {}) if last else {}
+        if cond["field"] == "retired":
+            firing = bool(detail_json.get("retired")) if last else None
+            detail = (
+                f"eski (o'chirilgan) IP ga qaraydi: {', '.join(detail_json.get('retired', []))}"
+                if firing
+                else "eski IP yo'q"
+            )
+        else:  # mismatch: 3 marta tasdiqlangan (down) VA mismatch_after_min davomida
+            if probe.state in (Probe.State.UNKNOWN, Probe.State.PAUSED):
+                firing, detail = None, "hali tasdiqlanmagan"
+            else:
+                wait = int(probe.config.get("mismatch_after_min", 10)) * 60
+                held = (ctx.now - probe.state_since).total_seconds() if probe.state_since else 0
+                firing = probe.state == Probe.State.DOWN and held >= wait
+                bad = [
+                    f"{r['resolver']} -> {','.join(r['answers']) or r['rcode']}"
+                    for r in detail_json.get("resolvers", [])
+                    if not r["matches"]
+                ]
+                kutilgan = ", ".join(probe.config.get("expected", []))
+                detail = f"kutilgan {kutilgan}; mos emas: {'; '.join(bad)}" if bad else "mos"
+        domain = probe.domain.fqdn if probe.domain else probe.config.get("name", "")
+        scope_key = f"project:{project.pk}" if project else f"probe:{probe.pk}"
+        out.append(
+            Subject(
+                "probe",
+                str(probe.pk),
+                probe.name,
+                scope_key,
+                firing,
+                None,
+                detail,
+                _project_labels(project, domain),
+            )
+        )
+    return out
 
 
 def _last_error(probe: Probe) -> str:
@@ -571,7 +716,9 @@ def _state_probes(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
     hisoblanmaydi (FR-REG-006/007). Incident qamrovi — loyiha (yo'q bo'lsa tekshiruvning o'zi)."""
     primary = cond.get("primary")
     out = []
-    probes = Probe.objects.filter(enabled=True).select_related("project", "domain")
+    probes = Probe.objects.filter(enabled=True, type__in=["http", "tcp"]).select_related(
+        "project", "domain"
+    )
     for probe in probes:
         project: Project | None = probe.project
         if project is not None and (not project.moved or project.status != Project.Status.ACTIVE):

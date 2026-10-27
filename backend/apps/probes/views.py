@@ -208,3 +208,78 @@ class ProbeUptimeView(APIView):
         if not Probe.objects.filter(pk=pk).exists():
             return error_response("not_found", "Tekshiruv topilmadi.", 404)
         return Response(services.uptime(pk))
+
+
+class CertListView(APIView):
+    """`GET /certs/`: barcha sertifikatlar va qolgan kun (FR-TLS-003). `?days_left_lt=21`, `?project_id=`."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> HttpResponse:
+        from .models import CertStatus
+
+        q = request.query_params
+        rows = CertStatus.objects.select_related("domain__project").order_by("not_after")
+        if project_id := q.get("project_id"):
+            rows = rows.filter(domain__project_id=project_id)
+        now = timezone.now()
+        items = []
+        for c in rows:
+            days_left = int((c.not_after - now).total_seconds() // 86400)
+            if "days_left_lt" in q and not (
+                q["days_left_lt"].lstrip("-").isdigit() and days_left < int(q["days_left_lt"])
+            ):
+                continue
+            items.append(
+                {
+                    "id": c.pk, "name": c.name, "source": c.source, "domain": str(c.domain_id) if c.domain_id else None,
+                    "project": c.domain.project.slug if c.domain and c.domain.project else None,
+                    "not_after": c.not_after, "days_left": days_left, "issuer": c.issuer, "subject": c.subject,
+                    "san": c.san, "chain_ok": c.chain_ok, "hostname_ok": c.hostname_ok, "checked_at": c.checked_at,
+                }
+            )  # fmt: skip
+        if "days_left_lt" in q and not q["days_left_lt"].lstrip("-").isdigit():
+            return error_response("validation_error", "days_left_lt butun son bo'lishi kerak.", 400)
+        return Response({"items": items})
+
+
+class DomainDnsView(APIView):
+    """`GET /domains/{id}/dns`: resolverlar bo'yicha oxirgi natija va o'zgarishlar tarixi (FR-DNS-002, FR-DNS-008)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, pk: str) -> HttpResponse:
+        from django.db import connection
+
+        from apps.registry.models import Domain
+
+        from .models import DnsChange
+
+        if not Domain.objects.filter(pk=pk).exists():
+            return error_response("not_found", "Domen topilmadi.", 404)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT DISTINCT ON (resolver) resolver, rtype, time, answers, matches, rcode, latency_ms
+                FROM dns_results WHERE domain_id = %s ORDER BY resolver, time DESC
+                """,
+                [pk],
+            )
+            cols = [c.name for c in cursor.description or []]
+            latest = [dict(zip(cols, row, strict=True)) for row in cursor.fetchall()]
+        changes = DnsChange.objects.filter(domain_id=pk).order_by("-changed_at")[:50]
+        return Response(
+            {
+                "resolvers": latest,
+                "changes": [
+                    {
+                        "resolver": c.resolver,
+                        "rtype": c.rtype,
+                        "old_answers": c.old_answers,
+                        "new_answers": c.new_answers,
+                        "changed_at": c.changed_at,
+                    }
+                    for c in changes
+                ],
+            }
+        )

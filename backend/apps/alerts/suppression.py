@@ -23,6 +23,22 @@ SILENCE_DEPENDENT_EXEMPT = {
     "AL-002",
     "AL-008",
 }  # host o'chganda bostirilmaydigan "sabab" alertlari
+PROBE_SUBJECTS = ("probe", "cert")
+DNS_KEYS = {"AL-062", "AL-063"}
+
+
+def supersede_group(rule: Any) -> str | None:
+    """Bir obyektdagi bir kattalikning bir nechta chegara qoidasi guruhi: eng og'iri xabar beradi."""
+    cond = rule.condition
+    if cond.get("type") == "threshold":
+        return str(cond.get("metric"))
+    if (
+        cond.get("type") == "state"
+        and cond.get("source") == "cert"
+        and cond.get("field") == "days_left_lte"
+    ):
+        return "cert_days_left"
+    return None
 
 
 class MatcherError(ValueError):
@@ -84,21 +100,22 @@ class SuppressionContext:
         self.mass_silence = any(i.rule.key == MASS_SILENCE_KEY for i in firing)
         self.top_rank: dict[tuple[str, str], int] = {}
         for i in firing:
-            metric = (
-                i.rule.condition.get("metric")
-                if i.rule.condition.get("type") == "threshold"
-                else None
-            )
+            metric = supersede_group(i.rule)
             if metric:
-                key = (i.subject_id, str(metric))
+                key = (i.subject_id, metric)
                 self.top_rank[key] = max(self.top_rank.get(key, -1), SEVERITY_RANK[i.rule.severity])
         self._servers: dict[str, Server] = {}
         self._projects: dict[str, list[tuple[str, str]]] = {}
         ids = {i.subject_id.split(":")[0] for i in firing if i.subject_type == "host"}
         # Faol tekshiruv (probe) alertlari: loyihaning serverlari bostirish uchun kerak.
         probe_projects = {
-            i.labels.get("project_id") for i in firing if i.subject_type == "probe"
+            i.labels.get("project_id") for i in firing if i.subject_type in PROBE_SUBJECTS
         } - {None, ""}
+        # Domen DNS si mos emas: shu domenning HTTP/TLS alertlari bostiriladi (sabab bitta, 6.7.3).
+        self.dns_domains = {i.labels.get("domain") for i in firing if i.rule.key in DNS_KEYS} - {
+            None,
+            "",
+        }
         self._project_servers: dict[str, set[str]] = {}
         for row in ProjectServer.objects.filter(project_id__in=probe_projects):
             self._project_servers.setdefault(str(row.project_id), set()).add(str(row.server_id))
@@ -124,7 +141,7 @@ class SuppressionContext:
 
     def labels_for(self, inst: AlertInstance) -> dict[str, list[str]]:
         labels = {"rule": [inst.rule.key], "severity": [inst.rule.severity]}
-        if inst.subject_type == "probe":
+        if inst.subject_type in PROBE_SUBJECTS:
             if inst.labels.get("project"):
                 labels["project"] = [inst.labels["project"]]
             if inst.labels.get("domain"):
@@ -166,12 +183,20 @@ class SuppressionContext:
                 return "silence"
         if servers and servers <= self.host_down:
             return "host_down"
+        if inst.rule.key not in DNS_KEYS and inst.labels.get("domain") in self.dns_domains:
+            return "dns_mismatch"
+        metric = supersede_group(inst.rule)
+        if (
+            metric
+            and self.top_rank.get((inst.subject_id, metric), -1) > SEVERITY_RANK[inst.rule.severity]
+        ):
+            return "superseded"
         return ""
 
     def reason(self, inst: AlertInstance) -> str:
         """Bostirish sababi yoki '' (yuborish kerak). Ustuvorlik: pause > maintenance > silence > bog'liqlik."""
         rule = inst.rule
-        if inst.subject_type == "probe":
+        if inst.subject_type in PROBE_SUBJECTS:
             return self._probe_reason(inst)
         server_id = inst.subject_id.split(":")[0] if inst.subject_type == "host" else ""
         server = self._servers.get(server_id)
@@ -187,10 +212,10 @@ class SuppressionContext:
             return "host_down"
         if self.mass_silence and rule.key in {"AL-001", "AL-002"}:
             return "mass_silence"
-        metric = rule.condition.get("metric") if rule.condition.get("type") == "threshold" else None
+        metric = supersede_group(rule)
         if (
             metric
-            and self.top_rank.get((inst.subject_id, str(metric)), -1) > SEVERITY_RANK[rule.severity]
+            and self.top_rank.get((inst.subject_id, metric), -1) > SEVERITY_RANK[rule.severity]
         ):
             return "superseded"
         return ""

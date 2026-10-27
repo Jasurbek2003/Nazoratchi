@@ -62,7 +62,7 @@ def test_hypertable_compression_retention_and_cagg_policies_exist(server: Server
         """SELECT hypertable_name, proc_name FROM timescaledb_information.jobs
            WHERE proc_name IN ('policy_compression', 'policy_retention',
                                'policy_refresh_continuous_aggregate')
-             AND hypertable_name <> 'probe_results'"""
+             AND hypertable_name NOT IN ('probe_results', 'dns_results')"""
     )
     procs = [proc for _, proc in jobs]
     assert procs.count("policy_compression") == 1

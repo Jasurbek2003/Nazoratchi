@@ -223,3 +223,18 @@ class HostEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.type}@{self.server_id}"
+
+
+class Setting(models.Model):
+    """Tizim darajasidagi kichik sozlamalar (masalan, `retired_ips` — o'chirilgan IP lar, Q-12)."""
+
+    key = models.CharField(max_length=60, primary_key=True)
+    value = models.JSONField(default=dict)
+
+    def __str__(self) -> str:
+        return self.key
+
+    @classmethod
+    def get(cls, key: str, default: Any = None) -> Any:
+        row = cls.objects.filter(key=key).first()
+        return row.value if row else default

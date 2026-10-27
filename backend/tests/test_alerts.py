@@ -21,6 +21,7 @@ from apps.alerts.engine import run_cycle
 from apps.alerts.models import AlertInstance, AlertRule, Incident, MaintenanceWindow, Silence
 from apps.alerts.suppression import MatcherError, matches, validate_matchers
 from apps.heartbeats.models import HeartbeatJob
+from apps.ingest.catalog import kind_for, unit_for
 from apps.ingest.services import labels_hash
 from apps.metrics.models import Series, SeriesLatest
 from apps.notifications.models import Channel, Notification
@@ -39,7 +40,10 @@ def new_server(name: str = "main-2", ip: str | None = "164.68.105.194", **kw: An
 def put(server: Server, name: str, value: float, at: datetime, **labels: str) -> None:
     """Sintetik namuna: `metric_samples` + `SeriesLatest` + server.last_seen_at."""
     series, _ = Series.objects.get_or_create(
-        server=server, name=name, labels_hash=labels_hash(labels), defaults={"labels": labels}
+        server=server,
+        name=name,
+        labels_hash=labels_hash(labels),
+        defaults={"labels": labels, "unit": unit_for(name), "kind": kind_for(name)},
     )
     with connection.cursor() as cursor:
         cursor.execute(

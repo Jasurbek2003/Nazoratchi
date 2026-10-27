@@ -440,6 +440,10 @@ class DomainDetailView(APIView):
         ):
             return error_response("duplicate", "Bunday domen mavjud.", 409)
         serializer.save()
+        if "expected_ips" in serializer.validated_data and domain.status == Domain.Status.ACTIVE:
+            from apps.probes.services import sync_dns_probe
+
+            sync_dns_probe(domain)
         if domain.status == Domain.Status.ARCHIVED:  # FR-REG-006: arxivlangan alert yubormaydi
             from apps.probes.models import Probe
 

@@ -289,6 +289,12 @@ def run_check(probe_type: str, config: dict[str, Any], timeout_s: int) -> Outcom
         return check_http(config, timeout_s)
     if probe_type == "tcp":
         return check_tcp(config, timeout_s)
+    if probe_type in ("tls", "dns"):
+        from . import checks_net  # aylanma importni oldini olish: checks_net checks dan oladi
+
+        return (checks_net.check_tls if probe_type == "tls" else checks_net.check_dns)(
+            config, timeout_s
+        )
     return Outcome(
         False,
         error_kind="config",

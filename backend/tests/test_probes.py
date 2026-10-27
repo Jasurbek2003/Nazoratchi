@@ -222,7 +222,7 @@ def test_tcp_open_closed_and_expectation(web: str) -> None:
         ("tcp", {"host": "x.uz", "port": 70000}),
         ("tcp", {"host": "x.uz", "port": True}),
         ("tcp", {"host": "x.uz", "port": 80, "expect": "maybe"}),
-        ("dns", {"name": "x.uz"}),
+        ("whois", {"domain": "x.uz"}),  # F2
     ],
 )
 def test_invalid_probe_configs_rejected(kind: str, config: dict[str, Any]) -> None:
@@ -352,10 +352,15 @@ def test_unexpected_checker_crash_is_a_failure_not_a_dead_prober(
 def test_ensure_domain_probes_idempotent() -> None:
     p = Project.objects.create(slug="n-1", name="N", kind="static")
     d = Domain.objects.create(fqdn="n.example.uz", project=p)
-    assert len(services.ensure_domain_probes(d)) == 1
+    assert {x.type for x in services.ensure_domain_probes(d)} == {
+        "http",
+        "tls",
+    }  # kutilgan IP yo'q: DNS tekshiruvi yo'q
     assert services.ensure_domain_probes(d) == []
-    probe = Probe.objects.get()
+    probe = Probe.objects.get(type="http")
     assert probe.config["url"] == "https://n.example.uz/" and probe.project == p
+    assert Probe.objects.get(type="tls").config == {"host": "n.example.uz", "port": 443}
+    assert not Probe.objects.filter(type="dns").exists()
 
 
 def test_run_prober_command_once(monkeypatch: pytest.MonkeyPatch) -> None:

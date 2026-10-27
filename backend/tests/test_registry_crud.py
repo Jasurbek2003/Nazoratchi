@@ -215,7 +215,8 @@ def test_create_project_with_servers_domains_and_auto_probes(operator: Client) -
         "app.beyondlinks.uz",
         "nazar.avlo.ai",
     ]  # kichik harf, nuqtasiz
-    probes = Probe.objects.all()
+    probes = Probe.objects.filter(type="http")
+    assert Probe.objects.filter(type="tls").count() == 2  # har domen uchun TLS ham
     assert probes.count() == 2 and {p.config["url"] for p in probes} == {
         "https://nazar.avlo.ai/",
         "https://app.beyondlinks.uz/",
@@ -440,9 +441,9 @@ def test_domain_without_project_or_unmoved_gets_no_probe_and_archive_disables(
     d = call(
         operator, "post", "/api/v1/domains/", {"fqdn": "live.example.uz", "project": p["id"]}
     ).json()
-    assert Probe.objects.get().enabled is True
+    assert Probe.objects.filter(enabled=True).count() == 2  # HTTP + TLS
     call(operator, "patch", f"/api/v1/domains/{d['id']}", {"status": "archived"})
-    assert Probe.objects.get().enabled is False
+    assert not Probe.objects.filter(enabled=True).exists()
     assert [x["fqdn"] for x in operator.get("/api/v1/domains/").json()["items"]] == [
         "free.example.uz",
         "m.example.uz",

@@ -119,6 +119,47 @@ BUILT_IN: list[dict[str, Any]] = [
         "runbook_key": "RB-025", "runbook_hint": "avval serverni (`docker ps`, nginx logi), keyin DNS va sertifikatni tekshiring",
     },
     {
+        "key": "AL-035", "name": "Konteyner ishlamayapti", "scope": HOST, "for_seconds": 90, "severity": "high",
+        "condition": {"type": "threshold", "metric": "docker_container_running", "op": "==", "value": 0, "aggregate": "last", "window_s": 60,
+                      "when": {"metric": "docker_container_expected", "op": "==", "value": 1}},
+        "runbook_key": "RB-020", "runbook_hint": "`docker ps -a`, `docker logs <konteyner>`; ataylab to'xtatilgan bo'lsa jim qiling",
+    },
+    {
+        "key": "AL-036", "name": "Konteyner crash loop", "scope": HOST, "for_seconds": 0, "severity": "high",
+        "condition": {"type": "rate", "metric": "docker_container_restarts_total", "increase": 2, "window_s": 600},
+        "runbook_key": "RB-020", "runbook_hint": "`docker logs --tail 100 <konteyner>`: nega qayta-qayta yiqilmoqda?",
+    },
+    {
+        "key": "AL-057", "name": "Sertifikat 21 kunda tugaydi", "scope": {"type": "cert"}, "for_seconds": 0, "severity": "warning",
+        "condition": {"type": "state", "source": "cert", "field": "days_left_lte", "equals": 21},
+        "runbook_key": "RB-006", "runbook_hint": "`certbot renew --dry-run`; yangilash cron/timer ishlayaptimi?",
+    },
+    {
+        "key": "AL-058", "name": "Sertifikat 7 kunda tugaydi", "scope": {"type": "cert"}, "for_seconds": 0, "severity": "high",
+        "condition": {"type": "state", "source": "cert", "field": "days_left_lte", "equals": 7},
+        "runbook_key": "RB-006", "runbook_hint": "`certbot renew`; nginx reload qilinganini tekshiring",
+    },
+    {
+        "key": "AL-059", "name": "Sertifikat 3 kunda tugaydi yoki tugadi", "scope": {"type": "cert"}, "for_seconds": 0, "severity": "critical",
+        "condition": {"type": "state", "source": "cert", "field": "days_left_lte", "equals": 3},
+        "runbook_key": "RB-006", "runbook_hint": "zudlik bilan yangilang: `certbot renew --force-renewal` va nginx reload",
+    },
+    {
+        "key": "AL-060", "name": "Sertifikat yaroqsiz", "scope": {"type": "cert"}, "for_seconds": 600, "severity": "high",
+        "condition": {"type": "state", "source": "cert", "field": "invalid", "equals": True},
+        "runbook_key": "RB-006", "runbook_hint": "zanjir (fullchain.pem) to'liqmi va domen SAN da bormi?",
+    },
+    {
+        "key": "AL-062", "name": "DNS kutilgan IP ga qaramaydi", "scope": {"type": "dns"}, "for_seconds": 0, "severity": "high",
+        "condition": {"type": "state", "source": "dns", "field": "mismatch", "equals": True},
+        "runbook_key": "RB-007", "runbook_hint": "DNS provayderida A yozuvini tekshiring; o'zgarish yaqinda bo'lsa tarqalishni kuting",
+    },
+    {
+        "key": "AL-063", "name": "Domen yopilgan IP ga qaraydi", "scope": {"type": "dns"}, "for_seconds": 600, "severity": "high",
+        "condition": {"type": "state", "source": "dns", "field": "retired", "equals": True},
+        "runbook_key": "RB-007", "runbook_hint": "domen o'chirilgan serverga qaraydi: A yozuvini yangi IP ga o'zgartiring",
+    },
+    {
         "key": "AL-085", "name": "Prober qotdi", "scope": {"type": "system"}, "for_seconds": 0, "severity": "high",
         "condition": {"type": "state", "source": "prober", "field": "stalled", "equals": True},
         "runbook_key": "RB-040", "runbook_hint": "`run_prober` jarayoni ishlayaptimi? loglarni tekshiring",

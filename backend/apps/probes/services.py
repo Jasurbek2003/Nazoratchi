@@ -5,6 +5,7 @@ bitta muvaffaqiyat = `up`. Qayta tekshiruv oqim ichida uxlamaydi: `next_run_at` 
 """
 
 import ipaddress
+import json
 import logging
 import random
 from concurrent.futures import ThreadPoolExecutor
@@ -15,10 +16,10 @@ from uuid import UUID
 from django.db import connection, transaction
 from django.utils import timezone
 
-from apps.registry.models import Domain
+from apps.registry.models import Domain, Setting
 
 from . import checks
-from .models import Probe
+from .models import CertStatus, DnsChange, Probe
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,28 @@ HTTP_KEYS = {
     "verify_tls", "resolve_to", "latency_warn_ms", "max_body_bytes", "allow_private", "primary",
 }  # fmt: skip
 TCP_KEYS = {"host", "port", "expect", "allow_private", "primary"}
+TLS_KEYS = {
+    "host",
+    "port",
+    "sni",
+    "warn_days",
+    "high_days",
+    "critical_days",
+    "check_chain",
+    "check_hostname",
+    "allow_private",
+    "primary",
+}
+DNS_KEYS = {
+    "name",
+    "rtype",
+    "resolvers",
+    "expected",
+    "retired_ips",
+    "mismatch_after_min",
+    "allow_private",
+    "primary",
+}
 
 
 class ProbeConfigError(ValueError):
@@ -45,8 +68,12 @@ def validate_config(kind: str, config: Any) -> None:
         _check_http(config)
     elif kind == "tcp":
         _check_tcp(config)
+    elif kind == "tls":
+        _check_tls(config)
+    elif kind == "dns":
+        _check_dns(config)
     else:
-        raise ProbeConfigError(f"{kind} turi hali qo'llab-quvvatlanmaydi (tls, dns, whois — S5)")
+        raise ProbeConfigError(f"{kind} turi hali qo'llab-quvvatlanmaydi (whois — F2)")
 
 
 def _unknown(config: dict[str, Any], allowed: set[str]) -> None:
@@ -110,6 +137,69 @@ def _check_http(c: dict[str, Any]) -> None:
             raise ProbeConfigError("resolve_to IP manzil bo'lishi kerak") from exc
 
 
+def _check_tls(c: dict[str, Any]) -> None:
+    _unknown(c, TLS_KEYS)
+    for key in ("host", "sni"):
+        if key in c and (not isinstance(c[key], str) or not c[key] or len(c[key]) > 253):
+            raise ProbeConfigError(f"{key} domen nomi bo'lishi kerak")
+    if "host" not in c:
+        raise ProbeConfigError("host majburiy")
+    if "port" in c and (
+        isinstance(c["port"], bool) or not isinstance(c["port"], int) or not 1 <= c["port"] <= 65535
+    ):
+        raise ProbeConfigError("port 1..65535 bo'lishi kerak")
+    for key in ("warn_days", "high_days", "critical_days"):
+        if key in c and (
+            isinstance(c[key], bool) or not isinstance(c[key], int) or not 0 <= c[key] <= 365
+        ):
+            raise ProbeConfigError(f"{key} 0..365 bo'lishi kerak")
+    for key in ("check_chain", "check_hostname", "allow_private", "primary"):
+        if key in c and not isinstance(c[key], bool):
+            raise ProbeConfigError(f"{key} true/false bo'lishi kerak")
+
+
+def _ips(value: Any, key: str, limit: int = 20) -> None:
+    if not isinstance(value, list) or len(value) > limit:
+        raise ProbeConfigError(f"{key} IP manzillar ro'yxati (≤ {limit}) bo'lishi kerak")
+    for item in value:
+        try:
+            ipaddress.ip_address(item)
+        except ValueError as exc:
+            raise ProbeConfigError(f"{key}: {item!r} IP manzil emas") from exc
+
+
+def _check_dns(c: dict[str, Any]) -> None:
+    _unknown(c, DNS_KEYS)
+    name = c.get("name")
+    if not isinstance(name, str) or "." not in name or len(name) > 253:
+        raise ProbeConfigError("name domen nomi bo'lishi kerak")
+    if c.get("rtype", "A") not in ("A", "AAAA"):
+        raise ProbeConfigError("rtype A yoki AAAA bo'lishi kerak")
+    resolvers = c.get("resolvers", [])
+    if not isinstance(resolvers, list) or len(resolvers) > 6:
+        raise ProbeConfigError("resolvers ro'yxati (≤ 6) bo'lishi kerak")
+    for r in resolvers:
+        if r == "ns:auto":
+            continue
+        try:
+            ip = ipaddress.ip_address(r)
+        except ValueError as exc:
+            raise ProbeConfigError(f"resolver {r!r}: IP yoki 'ns:auto' bo'lishi kerak") from exc
+        if checks.is_blocked(str(ip)) and not c.get("allow_private"):
+            raise ProbeConfigError(f"resolver {r} ichki manzil (SSRF)")
+    _ips(c.get("expected", []), "expected")
+    _ips(c.get("retired_ips", []), "retired_ips")
+    if "mismatch_after_min" in c and (
+        isinstance(c["mismatch_after_min"], bool)
+        or not isinstance(c["mismatch_after_min"], int)
+        or not 1 <= c["mismatch_after_min"] <= 1440
+    ):
+        raise ProbeConfigError("mismatch_after_min 1..1440 bo'lishi kerak")
+    for key in ("allow_private", "primary"):
+        if key in c and not isinstance(c[key], bool):
+            raise ProbeConfigError(f"{key} true/false bo'lishi kerak")
+
+
 def _check_tcp(c: dict[str, Any]) -> None:
     _unknown(c, TCP_KEYS)
     if not isinstance(c.get("host"), str) or not c["host"] or len(c["host"]) > 253:
@@ -129,8 +219,6 @@ def _check_tcp(c: dict[str, Any]) -> None:
 
 # ----------------------------------------------------------------------- natijalar
 def store_result(probe: Probe, now: datetime, outcome: checks.Outcome) -> None:
-    import json
-
     with connection.cursor() as cursor:
         cursor.execute(
             """
@@ -170,6 +258,52 @@ def apply_outcome(probe: Probe, outcome: checks.Outcome, now: datetime) -> None:
         update_fields=["last_run_at", "consecutive_failures", "state", "state_since", "next_run_at"]
     )
     store_result(probe, now, outcome)
+    record_extras(probe, outcome, now)
+
+
+def record_extras(probe: Probe, outcome: checks.Outcome, now: datetime) -> None:
+    """Tur bo'yicha qo'shimcha saqlash: TLS -> cert_status; DNS -> dns_results va o'zgarishlar tarixi."""
+    if probe.type == Probe.Type.TLS and outcome.ok and "not_after" in outcome.detail:
+        d = outcome.detail
+        CertStatus.objects.update_or_create(
+            name=probe.config.get("sni") or probe.config["host"], source=CertStatus.Source.PROBE, server=None,
+            defaults={
+                "domain": probe.domain, "not_after": datetime.fromisoformat(d["not_after"]), "issuer": d["issuer"],
+                "subject": d["subject"], "san": d["san"], "chain_ok": d["chain_ok"], "hostname_ok": d["hostname_ok"],
+                "checked_at": now,
+            },
+        )  # fmt: skip
+    elif probe.type == Probe.Type.DNS and probe.domain_id and "resolvers" in outcome.detail:
+        rtype = probe.config.get("rtype", "A")
+        with connection.cursor() as cursor:
+            for r in outcome.detail["resolvers"]:
+                if r["rcode"] in ("TIMEOUT", "ERROR", "BLOCKED", "NO_NS"):
+                    continue  # javob yo'q: o'zgarish emas
+                cursor.execute(
+                    "SELECT answers FROM dns_results WHERE probe_id = %s AND resolver = %s ORDER BY time DESC LIMIT 1",
+                    [probe.pk, r["resolver"]],
+                )
+                previous = cursor.fetchone()
+                cursor.execute(
+                    "INSERT INTO dns_results (time, domain_id, probe_id, resolver, rtype, answers, matches, rcode, latency_ms)"
+                    " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    [
+                        now,
+                        probe.domain_id,
+                        probe.pk,
+                        r["resolver"],
+                        rtype,
+                        r["answers"],
+                        r["matches"],
+                        r["rcode"],
+                        r["latency_ms"],
+                    ],
+                )
+                if previous is not None and list(previous[0]) != r["answers"]:
+                    DnsChange.objects.create(
+                        domain_id=probe.domain_id, resolver=r["resolver"], rtype=rtype,
+                        old_answers=list(previous[0]), new_answers=r["answers"], changed_at=now,
+                    )  # fmt: skip
 
 
 def execute(probe: Probe) -> checks.Outcome:
@@ -210,25 +344,75 @@ def run_now(probe: Probe) -> checks.Outcome:
     return outcome
 
 
+def retired_ips() -> list[str]:
+    """O'chirilgan IP lar (Q-12): domen shularga qarasa AL-063. `seed_registry` yozadi."""
+    return [str(x) for x in Setting.get("retired_ips", [])]
+
+
+def sync_dns_probe(domain: Domain) -> Probe | None:
+    """Domenning DNS tekshiruvini kutilgan IP lar bilan moslab turadi (FR-DNS-001). Kutilgan IP yo'q bo'lsa
+    solishtirish ma'nosiz: mavjud tekshiruv o'chiriladi, yangisi yaratilmaydi."""
+    probe = Probe.objects.filter(domain=domain, type=Probe.Type.DNS).first()
+    expected = [str(ip) for ip in domain.expected_ips]
+    if not expected:
+        if probe is not None and probe.enabled:
+            Probe.objects.filter(pk=probe.pk).update(enabled=False, state=Probe.State.PAUSED)
+        return None
+    config = {
+        "name": domain.fqdn,
+        "rtype": "A",
+        "resolvers": [*checks_net_resolvers(), "ns:auto"],
+        "expected": expected,
+        "retired_ips": retired_ips(),
+    }
+    if probe is None:
+        return Probe.objects.create(
+            project=domain.project,
+            domain=domain,
+            type=Probe.Type.DNS,
+            name=f"{domain.fqdn} DNS",
+            config=config,
+            interval_s=300,
+            timeout_s=10,
+        )
+    changed = probe.config.get("expected") != expected
+    probe.config = {**probe.config, "expected": expected, "retired_ips": retired_ips()}
+    probe.enabled = True
+    if changed or probe.state == Probe.State.PAUSED:
+        probe.state, probe.next_run_at = Probe.State.UNKNOWN, timezone.now()
+        probe.consecutive_failures = 0
+    probe.save()
+    return probe
+
+
+def checks_net_resolvers() -> list[str]:
+    from .checks_net import PUBLIC_RESOLVERS
+
+    return list(PUBLIC_RESOLVERS)
+
+
 def ensure_domain_probes(domain: Domain) -> list[Probe]:
-    """Domen qo'shilganda avtomatik HTTP tekshiruv (FR-REG-005). TLS/DNS — S5. Qayta chaqirilsa takrorlamaydi."""
+    """Domen qo'shilganda avtomatik tekshiruvlar (FR-REG-005): HTTP, TLS (tls_enabled), DNS (kutilgan IP bo'lsa).
+    Qayta chaqirilsa takrorlamaydi."""
     created: list[Probe] = []
     if not Probe.objects.filter(domain=domain, type=Probe.Type.HTTP).exists():
         created.append(
             Probe.objects.create(
-                project=domain.project,
-                domain=domain,
-                type=Probe.Type.HTTP,
-                name=f"{domain.fqdn} HTTP",
-                config={
-                    "url": f"https://{domain.fqdn}/",
-                    "expected_status": ["200-299"],
-                    "follow_redirects": True,
-                },
-                interval_s=60,
-                timeout_s=10,
+                project=domain.project, domain=domain, type=Probe.Type.HTTP, name=f"{domain.fqdn} HTTP",
+                config={"url": f"https://{domain.fqdn}/", "expected_status": ["200-299"], "follow_redirects": True},
+                interval_s=60, timeout_s=10,
             )
-        )
+        )  # fmt: skip
+    if domain.tls_enabled and not Probe.objects.filter(domain=domain, type=Probe.Type.TLS).exists():
+        created.append(
+            Probe.objects.create(
+                project=domain.project, domain=domain, type=Probe.Type.TLS, name=f"{domain.fqdn} TLS",
+                config={"host": domain.fqdn, "port": 443}, interval_s=6 * 3600, timeout_s=10,
+            )
+        )  # fmt: skip
+    had_dns = Probe.objects.filter(domain=domain, type=Probe.Type.DNS).exists()
+    if sync_dns_probe(domain) is not None and not had_dns:
+        created.append(Probe.objects.get(domain=domain, type=Probe.Type.DNS))
     return created
 
 
@@ -263,4 +447,8 @@ def recent_results(
     with connection.cursor() as cursor:
         cursor.execute(sql, [probe_id, start, start, end, end, limit])
         cols = [c.name for c in cursor.description or []]
-        return [dict(zip(cols, row, strict=True)) for row in cursor.fetchall()]
+        rows = [dict(zip(cols, row, strict=True)) for row in cursor.fetchall()]
+    for row in rows:  # Django psycopg `jsonb` ni matn sifatida qaytaradi (JSONField o'zi ochadi); xom SQL da o'zimiz ochamiz
+        if isinstance(row.get("detail"), str):
+            row["detail"] = json.loads(row["detail"])
+    return rows

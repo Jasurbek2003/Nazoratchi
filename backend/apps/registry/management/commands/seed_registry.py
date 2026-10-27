@@ -14,7 +14,8 @@ from django.db import transaction
 
 from apps.heartbeats.models import HeartbeatJob
 from apps.probes.models import Probe
-from apps.registry.models import Domain, Project, ProjectServer, Server
+from apps.probes.services import ensure_domain_probes
+from apps.registry.models import Domain, Project, ProjectServer, Server, Setting
 from apps.registry.projects import normalize_fqdn
 
 
@@ -43,6 +44,12 @@ class Command(BaseCommand):
         tokens: list[str] = []
         with transaction.atomic():
             servers = self._servers(data.get("servers", []), counts)
+            if data.get("retired_ips"):  # DNS tekshiruvlari (AL-063) shu ro'yxatdan foydalanadi
+                _, made = Setting.objects.get_or_create(
+                    key="retired_ips", defaults={"value": data["retired_ips"]}
+                )
+                if made:
+                    self._bump(counts, "retired_ips")
             self._projects(data.get("projects", []), servers, counts, options["auto_probes"])
             self._heartbeats(data.get("heartbeats", []), servers, counts, tokens)
             if options["dry_run"]:
@@ -51,10 +58,6 @@ class Command(BaseCommand):
         self.stdout.write(
             prefix + ", ".join(f"{k}: +{v}" for k, v in counts.items()) or "yangi narsa yo'q"
         )
-        if data.get("retired_ips"):
-            self.stdout.write(
-                f"retired_ips ({len(data['retired_ips'])} ta) DNS tekshiruvlari (S5) uchun saqlanadi: hozir yuklanmaydi."
-            )
         for line in tokens if not options["dry_run"] else []:
             self.stdout.write(line)
 
@@ -95,6 +98,9 @@ class Command(BaseCommand):
             )
             if created:
                 self._bump(counts, "loyihalar")
+            expected_ips: list[
+                str
+            ] = []  # domenlar loyihaning production serveri IP siga qarashi kutiladi
             for link in row.get("servers", []):
                 server = (
                     servers.get(link["server"])
@@ -108,26 +114,25 @@ class Command(BaseCommand):
                 )  # fmt: skip
                 if linked:
                     self._bump(counts, "biriktirishlar")
+                if link.get("environment", "production") == "production" and server.public_ipv4:
+                    expected_ips.append(str(server.public_ipv4))
             for d in row.get("domains", []):
                 domain, made = Domain.objects.get_or_create(
                     fqdn=normalize_fqdn(d["fqdn"]),
                     defaults={
                         "project": project, "dns_provider": d.get("dns_provider", ""),
                         "controlled_by": d.get("controlled_by", "self"),
+                        "expected_ips": expected_ips,
                     },
                 )  # fmt: skip
                 if made:
                     self._bump(counts, "domenlar")
-                if (
-                    auto_probes
-                    and project.moved
-                    and not Probe.objects.filter(domain=domain, type="http").exists()
-                ):
-                    Probe.objects.create(
-                        project=project, domain=domain, type="http", name=f"{domain.fqdn} HTTP",
-                        config={"url": f"https://{domain.fqdn}/", "expected_status": ["200-299"], "primary": bool(d.get("primary"))},
-                    )  # fmt: skip
-                    self._bump(counts, "tekshiruvlar")
+                if auto_probes and project.moved:
+                    for probe in ensure_domain_probes(domain):
+                        if probe.type == "http" and d.get("primary"):
+                            probe.config = {**probe.config, "primary": True}
+                            probe.save(update_fields=["config"])
+                        self._bump(counts, "tekshiruvlar")
             for p in row.get("probes", []):
                 url = p["url"]
                 if not Probe.objects.filter(

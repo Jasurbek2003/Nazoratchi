@@ -93,6 +93,26 @@ jobs:
           done
           ls -l bin
 
+  frontend:
+    name: frontend (eslint, tsc, vitest, build)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+
   appctl:
     name: appctl patch (shellcheck, test)
     runs-on: ubuntu-24.04
@@ -154,5 +174,5 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker compose -f deploy/docker-compose.dev.yml config --quiet
 
-# F1 da qo'shiladi: frontend (eslint, tsc, vitest),
+# F1 da qo'shiladi:
 # build (image'lar, SBOM), sign/release (minisign), deploy-prod. Reja: docs/TZ/15-deploy.md 15.10.

@@ -71,17 +71,19 @@ log:
 
 func TestParseRejectsBadInput(t *testing.T) {
 	cases := map[string]struct{ yaml, want string }{
-		"url yo'q":         {"log:\n  level: info\n", "core.url"},
-		"http tashqi":      {"core:\n  url: http://nazoratchi.example.uz\n", "faqat localhost"},
-		"ftp":              {"core:\n  url: ftp://x\n", "https"},
-		"noma'lum kalit":   {"core:\n  url: https://x.uz\n  urll: 1\n", "urll"},
-		"system interval":  {"core:\n  url: https://x.uz\ncollectors:\n  system: {interval: 1s}\n", "collectors.system.interval"},
-		"disk interval":    {"core:\n  url: https://x.uz\ncollectors:\n  disk: {interval: 1s}\n", "collectors.disk.interval"},
-		"queue kichik":     {"core:\n  url: https://x.uz\nqueue:\n  max_bytes: 10\n", "queue.max_bytes"},
-		"log darajasi":     {"core:\n  url: https://x.uz\nlog:\n  level: loud\n", "log.level"},
-		"timeout":          {"core:\n  url: https://x.uz\n  timeout: 5m\n", "core.timeout"},
-		"yaml buzuq":       {"core: [\n", "sozlama noto'g'ri"},
-		"interval formati": {"core:\n  url: https://x.uz\ncollectors:\n  system: {interval: tez}\n", "sozlama noto'g'ri"},
+		"url yo'q":           {"log:\n  level: info\n", "core.url"},
+		"http tashqi":        {"core:\n  url: http://nazoratchi.example.uz\n", "faqat localhost"},
+		"ftp":                {"core:\n  url: ftp://x\n", "https"},
+		"noma'lum kalit":     {"core:\n  url: https://x.uz\n  urll: 1\n", "urll"},
+		"system interval":    {"core:\n  url: https://x.uz\ncollectors:\n  system: {interval: 1s}\n", "collectors.system.interval"},
+		"disk interval":      {"core:\n  url: https://x.uz\ncollectors:\n  disk: {interval: 1s}\n", "collectors.disk.interval"},
+		"queue kichik":       {"core:\n  url: https://x.uz\nqueue:\n  max_bytes: 10\n", "queue.max_bytes"},
+		"log darajasi":       {"core:\n  url: https://x.uz\nlog:\n  level: loud\n", "log.level"},
+		"timeout":            {"core:\n  url: https://x.uz\n  timeout: 5m\n", "core.timeout"},
+		"yaml buzuq":         {"core: [\n", "sozlama noto'g'ri"},
+		"interval formati":   {"core:\n  url: https://x.uz\ncollectors:\n  system: {interval: tez}\n", "sozlama noto'g'ri"},
+		"unit nomi --all":    {"core:\n  url: https://x.uz\ncollectors:\n  systemd: {units: [nginx, \"--all\"]}\n", "collectors.systemd.units"},
+		"unit nomi bo'shliq": {"core:\n  url: https://x.uz\ncollectors:\n  systemd: {units: [\"a b\"]}\n", "yaroqsiz unit nomi"},
 	}
 	for name, c := range cases {
 		_, err := Parse([]byte(c.yaml))
@@ -118,5 +120,16 @@ func TestExampleConfigIsValid(t *testing.T) {
 	}
 	if _, err := Parse(data); err != nil {
 		t.Fatalf("agent.example.yaml yaroqsiz: %v", err)
+	}
+}
+
+func TestDefaultsForSystemdAndBackup(t *testing.T) {
+	cfg := Default()
+	if cfg.Collectors.Systemd.HeartbeatsDir != "/var/lib/nazoratchi/heartbeats" || cfg.Collectors.Systemd.Interval != 30*time.Second {
+		t.Fatalf("systemd standartlari: %+v", cfg.Collectors.Systemd)
+	}
+	b := cfg.Collectors.Backup
+	if b.Root != "/opt/applications/backups" || b.AppctlConf != "/opt/applications/appctl.conf" || b.Interval != 300*time.Second {
+		t.Fatalf("backup standartlari: %+v", b)
 	}
 }

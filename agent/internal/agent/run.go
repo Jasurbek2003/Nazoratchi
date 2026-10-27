@@ -58,10 +58,20 @@ func BuildJobs(cfg *config.Config, proc string) (jobs []Job, skipped []string) {
 			jobs = append(jobs, Job{d, c.Docker.Interval})
 		}
 	}
-	// Quyidagilar keyingi sprintlarda (B5c-d) qo'shiladi.
+	if c.Systemd.Enabled {
+		if sd, err := collector.NewSystemd(c.Systemd.Units, c.Systemd.HeartbeatsDir, nil); err != nil {
+			skipped = append(skipped, "systemd ("+err.Error()+")")
+		} else {
+			jobs = append(jobs, Job{sd, c.Systemd.Interval})
+		}
+	}
+	if c.Backup.Enabled {
+		jobs = append(jobs, Job{collector.NewBackup(c.Backup.Root, c.Backup.AppctlConf), c.Backup.Interval})
+	}
+	// Quyidagilar keyingi sprintlarda (B5d+) qo'shiladi.
 	for name, col := range c.All() {
 		switch name {
-		case "system", "disk", "net", "docker":
+		case "system", "disk", "net", "docker", "systemd", "backup":
 		default:
 			if col.Enabled {
 				skipped = append(skipped, name)

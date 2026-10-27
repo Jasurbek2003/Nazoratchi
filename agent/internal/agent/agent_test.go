@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"nazoratchi/agent/internal/collector"
 	"nazoratchi/agent/internal/config"
 	"nazoratchi/agent/internal/metric"
 	"nazoratchi/agent/internal/queue"
@@ -481,26 +480,40 @@ func TestRunRejectsNoCollectors(t *testing.T) {
 }
 
 func TestBuildJobsSkipsUnimplemented(t *testing.T) {
-	jobs, _ := BuildJobs(config.Default(), "/proc")
-	if len(jobs) != 4 {
-		t.Fatalf("system, disk, net, docker kutilgan: %d", len(jobs))
+	jobs, skipped := BuildJobs(config.Default(), "/proc")
+	if len(jobs) != 6 {
+		t.Fatalf("system, disk, net, docker, systemd, backup kutilgan: %d", len(jobs))
 	}
 	names := map[string]bool{}
 	for _, j := range jobs {
 		names[j.C.Name()] = true
 	}
-	if !names["system"] || !names["disk"] || !names["net"] || !names["docker"] {
-		t.Fatal(names)
+	for _, n := range []string{"system", "disk", "net", "docker", "systemd", "backup"} {
+		if !names[n] {
+			t.Fatalf("%s yo'q: %v", n, names)
+		}
 	}
-	bad := config.Default()
-	bad.Collectors.Docker.Endpoint = "ftp://x"
-	jobs, skipped := BuildJobs(bad, "/proc")
-	if len(jobs) != 3 || !strings.Contains(strings.Join(skipped, ","), "docker (") {
-		t.Fatalf("noto'g'ri docker endpoint o'tkazib yuborilishi kerak: %d %v", len(jobs), skipped)
-	}
-	jobs, skipped = BuildJobs(config.Default(), "/proc")
-	if len(skipped) == 0 || skipped[0] != "apt" { // saralangan
+	if strings.Join(skipped, ",") != "apt,certs,diskio,ssh" { // saralangan
 		t.Fatalf("o'tkazib yuborilganlar: %v", skipped)
 	}
-	var _ collector.Collector = jobs[0].C
+
+	bad := config.Default()
+	bad.Collectors.Docker.Endpoint = "ftp://x"
+	jobs, skipped = BuildJobs(bad, "/proc")
+	if len(jobs) != 5 || !strings.Contains(strings.Join(skipped, ","), "docker (") {
+		t.Fatalf("noto'g'ri docker endpoint o'tkazib yuborilishi kerak: %d %v", len(jobs), skipped)
+	}
+
+	off := config.Default()
+	off.Collectors.Systemd.Enabled, off.Collectors.Backup.Enabled = false, false
+	if jobs, _ = BuildJobs(off, "/proc"); len(jobs) != 4 {
+		t.Fatalf("o'chirilgan kollektorlar job bo'lmasligi kerak: %d", len(jobs))
+	}
+
+	badUnit := config.Default() // Validate'dan o'tmagan bo'lsa ham systemd ishga tushmaydi
+	badUnit.Collectors.Systemd.Units = []string{"--all"}
+	jobs, skipped = BuildJobs(badUnit, "/proc")
+	if len(jobs) != 5 || !strings.Contains(strings.Join(skipped, ","), "systemd (") {
+		t.Fatalf("yaroqsiz unit: %d %v", len(jobs), skipped)
+	}
 }

@@ -4,6 +4,7 @@
 //	nazoratchi-agent enroll --core URL --token enr_...  # bir martalik token -> doimiy token
 //	nazoratchi-agent check-config [--config yo'l]
 //	nazoratchi-agent collect                         # bir martalik yig'ish (diagnostika), JSON
+//	nazoratchi-agent beat <job> [--dir /var/lib/nazoratchi/heartbeats]  # cron oxirida: heartbeat yozadi
 //	nazoratchi-agent version
 package main
 
@@ -47,12 +48,14 @@ func main() {
 		err = cmdEnroll(args, os.Stdout)
 	case "check-config":
 		err = cmdCheckConfig(args, os.Stdout)
+	case "beat":
+		err = cmdBeat(args, os.Stdout)
 	case "collect":
 		err = cmdCollect(os.Stdout)
 	case "version":
 		fmt.Printf("nazoratchi-agent %s (%s, %s/%s)\n", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	default:
-		err = fmt.Errorf("noma'lum buyruq %q (run, enroll, check-config, collect, version)", cmd)
+		err = fmt.Errorf("noma'lum buyruq %q (run, enroll, check-config, collect, beat, version)", cmd)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "xato:", err)

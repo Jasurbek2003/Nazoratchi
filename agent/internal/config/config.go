@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"nazoratchi/agent/internal/collector"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -52,6 +54,7 @@ type Collector struct {
 	Root          string        `yaml:"root"`
 	AppctlConf    string        `yaml:"appctl_conf"`
 	Globs         []string      `yaml:"globs"`
+	HeartbeatsDir string        `yaml:"heartbeats_dir"`
 }
 
 type Collectors struct {
@@ -88,8 +91,8 @@ func Default() *Config {
 			DiskIO:  Collector{Enabled: true, Interval: 15 * time.Second},
 			Net:     Collector{Enabled: true, Interval: 15 * time.Second, IgnoreIfaces: []string{"lo", "veth*", "br-*", "docker0"}},
 			Docker:  Collector{Enabled: true, Interval: 30 * time.Second, Endpoint: "tcp://127.0.0.1:2375", MaxContainers: 100},
-			Systemd: Collector{Enabled: true, Interval: 30 * time.Second},
-			Backup:  Collector{Enabled: true, Interval: 300 * time.Second},
+			Systemd: Collector{Enabled: true, Interval: 30 * time.Second, HeartbeatsDir: collector.DefaultHeartbeatsDir},
+			Backup:  Collector{Enabled: true, Interval: 300 * time.Second, Root: collector.DefaultBackupRoot, AppctlConf: collector.DefaultAppctlConf},
 			Certs:   Collector{Enabled: true, Interval: 6 * time.Hour},
 			SSH:     Collector{Enabled: true, Interval: 5 * time.Minute},
 			Apt:     Collector{Enabled: true, Interval: 24 * time.Hour},
@@ -145,6 +148,11 @@ func (c *Config) Validate() error {
 		}
 		if col.Interval < 5*time.Second || col.Interval > 48*time.Hour {
 			bad("collectors.%s.interval 5s dan 48h gacha bo'lishi kerak", name)
+		}
+	}
+	for _, u := range c.Collectors.Systemd.Units {
+		if !collector.ValidUnitName(u) {
+			bad("collectors.systemd.units: yaroqsiz unit nomi %q", u)
 		}
 	}
 	if c.Queue.Dir == "" {

@@ -9,12 +9,18 @@ core:
 host:
   name: ""                              # bo'sh bo'lsa hostname
 
-# Faqat system, disk, net amalga oshirilgan (S2). Qolganlari sozlanishi mumkin, lekin hozircha
-# ishga tushmaydi (agent buni boshlanishda xabar qiladi): diskio, docker, systemd, backup, certs, ssh, apt.
+# Amalga oshirilgan: system, disk, net, docker. Qolganlari sozlanishi mumkin, lekin hozircha ishga tushmaydi
+# (agent buni boshlanishda xabar qiladi): diskio, systemd, backup, certs, ssh, apt.
+# Docker yo'q serverda `docker.enabled: false` qiling, aks holda har davrda xato hisoblanadi.
 collectors:
   system: { enabled: true, interval: 15s }          # 5s..60s
   disk:   { enabled: true, interval: 30s, ignore_fstypes: [tmpfs, overlay, squashfs, devtmpfs] }
   net:    { enabled: true, interval: 15s, ignore_ifaces: ["lo", "veth*", "br-*", "docker0"] }
+  docker:
+    enabled: true
+    interval: 30s
+    endpoint: tcp://127.0.0.1:2375       # docker-socket-proxy (faqat GET) yoki unix:///var/run/docker.sock
+    max_containers: 100
 
 queue:
   dir: /var/lib/nazoratchi/queue

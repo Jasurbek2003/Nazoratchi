@@ -51,10 +51,17 @@ func BuildJobs(cfg *config.Config, proc string) (jobs []Job, skipped []string) {
 	if c.Net.Enabled {
 		jobs = append(jobs, Job{collector.NewNet(proc, c.Net.IgnoreIfaces), c.Net.Interval})
 	}
-	// Quyidagilar keyingi sprintlarda (B5a-d) qo'shiladi.
+	if c.Docker.Enabled {
+		if d, err := collector.NewDocker(c.Docker.Endpoint, c.Docker.MaxContainers); err != nil {
+			skipped = append(skipped, "docker ("+err.Error()+")")
+		} else {
+			jobs = append(jobs, Job{d, c.Docker.Interval})
+		}
+	}
+	// Quyidagilar keyingi sprintlarda (B5c-d) qo'shiladi.
 	for name, col := range c.All() {
 		switch name {
-		case "system", "disk", "net":
+		case "system", "disk", "net", "docker":
 		default:
 			if col.Enabled {
 				skipped = append(skipped, name)

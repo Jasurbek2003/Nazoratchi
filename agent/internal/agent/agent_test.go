@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -480,17 +481,24 @@ func TestRunRejectsNoCollectors(t *testing.T) {
 }
 
 func TestBuildJobsSkipsUnimplemented(t *testing.T) {
-	jobs, skipped := BuildJobs(config.Default(), "/proc")
-	if len(jobs) != 3 {
-		t.Fatalf("system, disk, net kutilgan: %d", len(jobs))
+	jobs, _ := BuildJobs(config.Default(), "/proc")
+	if len(jobs) != 4 {
+		t.Fatalf("system, disk, net, docker kutilgan: %d", len(jobs))
 	}
 	names := map[string]bool{}
 	for _, j := range jobs {
 		names[j.C.Name()] = true
 	}
-	if !names["system"] || !names["disk"] || !names["net"] {
+	if !names["system"] || !names["disk"] || !names["net"] || !names["docker"] {
 		t.Fatal(names)
 	}
+	bad := config.Default()
+	bad.Collectors.Docker.Endpoint = "ftp://x"
+	jobs, skipped := BuildJobs(bad, "/proc")
+	if len(jobs) != 3 || !strings.Contains(strings.Join(skipped, ","), "docker (") {
+		t.Fatalf("noto'g'ri docker endpoint o'tkazib yuborilishi kerak: %d %v", len(jobs), skipped)
+	}
+	jobs, skipped = BuildJobs(config.Default(), "/proc")
 	if len(skipped) == 0 || skipped[0] != "apt" { // saralangan
 		t.Fatalf("o'tkazib yuborilganlar: %v", skipped)
 	}

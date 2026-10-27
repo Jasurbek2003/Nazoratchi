@@ -7,7 +7,7 @@ buyruq bajarmaydi; faqat o'lchaydi va core'ga HTTPS orqali yuboradi.
 
 | Bor | Hali yo'q (keyingi sprintlar) |
 |---|---|
-| `system` (CPU, yuklama, xotira, swap, uptime), `disk` (hajm, faqat-o'qish), `net` (bayt/s) | `diskio`, `docker`, `systemd`, `backup`, `certs`, `ssh`, `apt` |
+| `system` (CPU, yuklama, xotira, swap, uptime), `disk` (hajm, faqat-o'qish), `net` (bayt/s), `docker` (holat, restartlar, uptime, health, OOM, "kutilgan") | `diskio`, `systemd`, `backup`, `certs`, `ssh`, `apt`; Docker resurs sarfi |
 | Jadval (interval ±10% jitter, timeout), 15 s paket, diskdagi navbat (20 MB / 15 daq) | Core buyruqlari (`set_interval`, `reload_config`, `update`) bajarilmaydi, faqat logga yoziladi |
 | Yuborish (gzip, backoff, `Retry-After`, 401 da 5 daq), `enroll`, `facts`, o'z metrikalari (`agent_*`) | `install.sh`, systemd unit, imzolangan reliz (S7) |
 

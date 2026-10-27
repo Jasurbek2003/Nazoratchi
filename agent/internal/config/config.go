@@ -87,7 +87,7 @@ func Default() *Config {
 			Disk:    Collector{Enabled: true, Interval: 30 * time.Second},
 			DiskIO:  Collector{Enabled: true, Interval: 15 * time.Second},
 			Net:     Collector{Enabled: true, Interval: 15 * time.Second, IgnoreIfaces: []string{"lo", "veth*", "br-*", "docker0"}},
-			Docker:  Collector{Enabled: true, Interval: 30 * time.Second, MaxContainers: 100},
+			Docker:  Collector{Enabled: true, Interval: 30 * time.Second, Endpoint: "tcp://127.0.0.1:2375", MaxContainers: 100},
 			Systemd: Collector{Enabled: true, Interval: 30 * time.Second},
 			Backup:  Collector{Enabled: true, Interval: 300 * time.Second},
 			Certs:   Collector{Enabled: true, Interval: 6 * time.Hour},

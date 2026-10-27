@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "apps.ingest",
     "apps.heartbeats",
     "apps.notifications",
+    "apps.alerts",
 ]
 
 MIDDLEWARE = [

@@ -246,6 +246,7 @@ yuritmasdan?
 2. Konteyner **kutilgan** deb belgilanadi, agar: (a) kamida 1 soat uzluksiz `running` bo'lgan **va**
    (b) `RestartPolicy` `no` dan farqli (`always`/`unless-stopped`/`on-failure`).
 3. Kutilgan konteyner yo'qolsa yoki `exited` bo'lsa → AL-035 (`high`), 90 soniyadan keyin.
+   *(S5)* "Kutilgan" belgisi agent xotirasida (`docker_container_expected`), core'da emas; agent qayta ishga tushsa 1 soat qaytadan kutiladi. Ro'yxatdan butunlay yo'qolgan konteyner 10 daqiqa alert beradi, keyin unutiladi: ataylab olib tashlash uchun alohida amal kerak emas (F3 da paneldagi tugma bilan almashadi).
 4. **Ataylab olib tashlash:** operator panelda "kutilgan ro'yxatdan chiqarish" tugmasini bosadi
    yoki `appctl down <loyiha>` natijasida loyiha uchun avtomatik maintenance (F3). Shu holda alert
    yo'q.

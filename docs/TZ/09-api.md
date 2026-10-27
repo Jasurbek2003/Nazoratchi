@@ -159,7 +159,7 @@ Qoidalar (S4):
 - **Keyingi bo'sh port** (`GET /projects/ports/next?server_id=`): `[A, B]`, A — 8000–8999 dagi eng kichik bo'sh port, B — `3000 + (A − 8000)`, u band bo'lsa 3000–3999 dagi eng kichik bo'sh. (REGISTRY.md qoidasining amalga oshirilgan talqini; hujjat bilan farq qilsa, shu yerni yangilang.)
 - `domains`: `fqdn` kichik harfga keltiriladi, oxirgi nuqta olib tashlanadi, IP va bir bo'g'inli nomlar rad etiladi. Domen `archived` bo'lsa uning tekshiruvlari o'chadi. Loyiha arxivlansa, uning tekshiruvlari ham o'chadi (alert yo'q, tarix qoladi).
 - `GET /projects/` standart holatda arxivlanganlarni ko'rsatmaydi; filtrlar: `status`, `q` (nom, slug, domen), `tag`, `server_id`, `moved`.
-- Yaratilmagan (keyingi sprintlar): `/projects/{id}/status`, `/domains/{id}/dns*`, `/domains/{id}/whois`, `/registry/export|import`.
+- S5 da qo'shilgan: `GET /domains/{id}/dns` (har resolver bo'yicha oxirgi natija va `changes[]` o'zgarishlar tarixi). Yaratilmagan: `/projects/{id}/status`, `/domains/{id}/dns/watch`, `/domains/{id}/whois` (F2), `/registry/export|import` (F2).
 
 ## 9.5. Metrikalar so'rovi
 
@@ -197,6 +197,8 @@ GET /api/v1/metrics/query?server_id=0193c0de-...&name=cpu_busy_percent&from=2026
   ]
 }
 ```
+
+Qoidalar (S4-S5): `step` (soniya) berilsa nuqtalar soni `ceil(oraliq/step)` (≤ 2000); aks holda `max_points` (100–2000, standart 1000). Oraliq ≤ 400 kun, `to` kelajakda bo'lmasligi kerak (≤ 1 daqiqa tolerantlik), `from`/`to` vaqt zonasi bilan. `agg`: `avg|min|max|last`. Ko'pi bilan 50 seriya. **Bo'shliq:** qo'shni nuqtalar orasi `max(3 qadam, 2 daqiqa)` dan uzoq bo'lsa, orasiga `null` nuqta qo'yiladi (agent jim bo'lgan davr grafikda uziladi, oddiy 15-30 s namuna oralig'i bo'shliq emas). `GET /metrics/latest?server_id=&names=a,b` — har seriyaning oxirgi qiymati. `GET /metrics/names[?server_id=]` — nom, birlik, tur, belgi kalitlari. `GET /metrics/top?metric=&limit=` — oxirgi 5 daqiqadagi qiymat bo'yicha kamayish tartibida (arxivlangan serverlar yashirin). `GET /servers/{id}/containers` — konteynerlar va oxirgi qiymatlari (5 daqiqadan eskisi `stale: true`); `GET /servers/{id}/filesystems` — bandlik va `days_until_full` (oxirgi 6 soat, R² ≥ 0.5 bo'lsa).
 
 `points` — `[vaqt_ms, qiymat]` juftliklari (ixcham). `source` — qaysi daraja ishlatilgani:
 `raw`, `1m`, `5m`, `1h` (8.4.3). Ma'lumot bo'lmagan oraliqlar `null` qiymat bilan beriladi
@@ -242,7 +244,7 @@ POST /api/v1/probes/
 
 Konfiguratsiya sxemalari (tur bo'yicha) 18.4-bo'limda.
 
-Qoidalar (S4): hozircha `http` va `tcp` turlari (qolganlari `400`). `DELETE` tekshiruvni o'chirmaydi: `enabled=false`, `state=paused` (tarix saqlanadi); qayta yoqilganda holat `unknown` dan boshlanadi. `config.allow_private=true` (ichki manzillarga ruxsat, SSRF) faqat Owner tomonidan o'rnatiladi. `POST /probes/{id}/run` — bir marta bajaradi, natijani qayd etadi va tasdiqlash qoidasini qo'llaydi. `GET /probes/{id}/results`: `from`, `to`, `limit` (≤ 500). `GET /probes/{id}/uptime`: 1, 7, 30, 90 kun. `/certs/` — S5.
+Qoidalar (S4): hozircha `http` va `tcp` turlari (qolganlari `400`). `DELETE` tekshiruvni o'chirmaydi: `enabled=false`, `state=paused` (tarix saqlanadi); qayta yoqilganda holat `unknown` dan boshlanadi. `config.allow_private=true` (ichki manzillarga ruxsat, SSRF) faqat Owner tomonidan o'rnatiladi. `POST /probes/{id}/run` — bir marta bajaradi, natijani qayd etadi va tasdiqlash qoidasini qo'llaydi. `GET /probes/{id}/results`: `from`, `to`, `limit` (≤ 500). `GET /probes/{id}/uptime`: 1, 7, 30, 90 kun. `GET /certs/` — sertifikatlar va `days_left` (`?days_left_lt=21`, `?project_id=`), muddati yaqinlari birinchi. TLS va DNS turlari endi qo'llab-quvvatlanadi (`tls`: 18.4.3, `dns`: 18.4.4; DNS uchun `domain` majburiy emas, lekin tarix faqat domenli tekshiruvlar uchun yoziladi); `whois` — F2.
 
 ## 9.7. Zaxira nusxalar
 

@@ -383,6 +383,8 @@ va 7 kunlik oynalar ham hisoblanadi, **eng yomon (eng yaqin)** natija ishlatilad
   *Amalga oshirish (S4):* qayta tekshiruv oqimni uxlatmaydi — `next_run_at` 15 s ga suriladi; tasdiqlanmagan xatolarda holat
   o'zgarmaydi (`unknown` bo'lsa `unknown` qoladi). Parallellik: `asyncio` o'rniga 50 oqimli `ThreadPoolExecutor`; vaqti kelganlar
   `SELECT ... FOR UPDATE SKIP LOCKED` bilan olinib, `next_run_at` avval suriladi (bir nechta prober takrorlamaydi).
+- **TLS (S5).** Sertifikat avval tekshiruvsiz o'qiladi (muddati o'tgan yoki nomi mos kelmasa ham ko'rish uchun), `cryptography` bilan `notAfter`, issuer, subject, SAN olinadi; keyin alohida ulanishda zanjir ishonchliligi (`chain_ok`) va SAN ga mosligi (`hostname_ok`, bitta darajali wildcard bilan) tekshiriladi. Tekshiruv `ok` = sertifikat o'qildi; chegaralarni (21/7/3 kun) alert qoidalari qo'llaydi.
+- **DNS (S5).** `dnspython`, har resolverga alohida (8.8.8.8, 1.1.1.1, 9.9.9.9 va `ns:auto` — domenning o'z NS serveri). Resolver ichki manzil bo'lsa rad etiladi. Javob bermagan resolver (timeout) hisobga olinmaydi; hamma jim bo'lsa `dns` xatosi (tarmoq muammosi), hammasi `NXDOMAIN` — `nxdomain`, aks holda kutilgan IP lar bilan nomuvofiqlik — `mismatch`. Har resolver natijasi `dns_results` ga yoziladi, javob o'zgarsa `dns_changes` ga (FR-DNS-008). WHOIS/RDAP — F2.
 - **IP-pinning (S4).** Nom bir marta aniqlanadi, tekshiruvdan o'tgan IP ga ulanadi; `Host` sarlavhasi va TLS SNI/sertifikat
   tekshiruvi asl nomda qoladi (DNS rebinding oldini oladi, `resolve_to` shu mexanizm). Har yo'naltirish qayta aniqlanadi va
   tekshiriladi. Vaqtlar (`dns/connect/tls/ttfb`) `httpx` trace hodisalaridan olinadi. S4 da faqat HTTP va TCP; TLS/DNS/WHOIS — S5.

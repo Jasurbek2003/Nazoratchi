@@ -46,6 +46,8 @@ Qoida `alert_rules.condition` (JSONB) maydonida saqlanadi. Beshta shart turi:
 `aggregate`: `avg|min|max|last` — `window_s` oralig'ida; `for_seconds` shart shu holda uzluksiz
 bajarilishi kerakligini bildiradi (qoida darajasida).
 
+Ixtiyoriy `when`: `{"metric": "docker_container_expected", "op": "==", "value": 1}` — shart faqat shu seriyaning (xuddi shu server va belgilar) hamroh metrikasi `when` ni qanoatlantirsa qo'llanadi, aks holda natija `yolg'on`. AL-035 shuni ishlatadi (faqat "kutilgan" konteyner).
+
 ### 12.3.2. `absent` — ma'lumot yo'qligi
 
 ```json
@@ -101,6 +103,10 @@ Amalga oshirilgan manbalar (S3):
 | `fleet` | `mass_silent` | `true` | Hostlarning ≥ 50% (kamida 2 ta) 120 s dan beri jim (AL-008) |
 | `probe` | `state` | `"down"` / `"up"` | Faol tekshiruv holati (S4). Ixtiyoriy `primary: true/false` filtri (`config.primary`). `unknown`/`paused` holat — noma'lum. Ko'chirilmagan (`moved=false`) va arxivlangan loyiha tekshiruvlari hisoblanmaydi. Incident qamrovi — `project:<id>` |
 | `prober` | `stalled` | `true` | Yoqilgan tekshiruvlar bor, lekin hech biri 180 s da bajarilmagan (AL-085) |
+| `cert` | `days_left_lte` | butun son | `cert_status` (TLS tekshiruvi): `floor((not_after − hozir)/1 kun) ≤ equals`; manfiy = muddati o'tgan. Holat 2 kundan eski bo'lsa — noma'lum |
+| `cert` | `invalid` | `true` | `chain_ok = false` yoki `hostname_ok = false` |
+| `dns` | `mismatch` | `true` | DNS tekshiruvi `down` (3 marta tasdiqlangan) VA `config.mismatch_after_min` (standart 10) davomida shunday |
+| `dns` | `retired` | `true` | Oxirgi natijada javob `config.retired_ips` ichida (domen o'chirilgan IP ga qaraydi) |
 
 **"Ma'lumot yo'q" (uch qiymatli mantiq).** Shart hisoblanayotgan metrika yangi bo'lmasa (`last` uchun
 `max(window_s, 120)` s dan eski) yoki hisoblash uchun nuqta yetmasa, natija `rost`/`yolg'on` emas, *noma'lum*.
@@ -378,6 +384,7 @@ Ahamiyat bo'yicha (asosiy daraja): `critical` 13, `high` 30, `warning` 36, `info
 
 > **S3 da yoqilgan standart qoidalar (16 ta):** AL-001, 002, 003, 008, 009, 014, 015, 019, 020, 021, 022, 023, 025,
 > 047, 048, 086.
+> **S5 da qo'shilgan (8 ta):** AL-035 (kutilgan konteyner), AL-036 (crash loop: 10 daqiqada > 2 ta qayta ishga tushish), AL-057/058/059 (sertifikat 21/7/3 kun), AL-060 (zanjir/nom yaroqsiz), AL-062 (DNS mos emas), AL-063 (yopilgan IP). Sertifikat zinapoyasida eng og'iri xabar beradi (`superseded`); domen DNS si mos emas bo'lsa shu domenning HTTP va sertifikat alertlari bostiriladi (`dns_mismatch`, 6.7.3). AL-062 da NXDOMAIN uchun alohida `critical` hozircha yo'q.
 > **S4 da qo'shilgan (3 ta):** AL-049 (asosiy sayt, `critical`), AL-049H (asosiy bo'lmagan, `high`: katalogdagi "critical (teg `primary`) / high" ikki qoidaga bo'lingan), AL-085 (prober qotdi). Tekshiruv alertlari loyihaning HAMMA serveri pauzada/texnik ishda yoki o'chgan bo'lsa bostiriladi (6.7.3). Qolgan F1 qoidalari (docker, tekshiruvlar, sertifikat, DNS, zaxira) ularning ma'lumoti paydo bo'lgan
 > sprintda qo'shiladi. AL-084/085 tashqi kuzatuvchi (watchdog, S7) bilan. Standart qoidalar bazada yo'q bo'lsagina
 > yaratiladi: foydalanuvchi o'zgartirgan chegaraga tegilmaydi.

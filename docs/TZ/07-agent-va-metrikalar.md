@@ -141,6 +141,9 @@ Quyidagi jadvallarda har metrika uchun: **Nom**, **Tur**, **Birlik**, **Belgilar
 Docker ma'lumoti `docker-socket-proxy` orqali (faqat GET) olinadi. Konteyner nomi `/` siz.
 Kardinallik chegarasi: bitta hostda ≤ 100 konteyner kuzatiladi (oshsa — `docker_series_dropped`).
 
+> **S5 da amalga oshirilgan (F1):** `docker_container_running`, `_restarts_total`, `_uptime_seconds`, `_health`, `_oom_killed`, `docker_containers_running/total` va `docker_container_expected` (quyida). Manzil: `tcp://127.0.0.1:2375` (proksi) yoki `unix:///var/run/docker.sock`. Konteyner holati `/containers/json?all=1`, qolgani har konteyner uchun `/containers/{id}/json` dan (≤ 100 so'rov/30 s). `health` faqat ishlayotgan konteynerda hisoblanadi (Docker to'xtagan konteynerda eski holatni saqlaydi). Resurs sarfi (`cpu_percent`, `mem_*`), `system/df` va log hajmi — F2.
+> **`docker_container_expected` (0/1):** konteyner kamida 1 soat uzluksiz ishlagan va `RestartPolicy` `no` dan farqli bo'lsa 1 (11.5.1). Bu holat agent **xotirasida** saqlanadi (agent qayta ishga tushsa, qaytadan 1 soat kerak). Kutilgan konteyner ro'yxatdan yo'qolsa 10 daqiqagacha `running=0` yuboriladi, keyin ataylab olib tashlangan deb unutiladi.
+
 | Nom | Tur | Birlik | Belgilar | Manba | Izoh | Faza |
 |---|---|---|---|---|---|---|
 | `docker_container_running` | gauge | 0/1 | `container`, `project`, `service` | `GET /containers/json?all=1` | `project`/`service` — `com.docker.compose.*` labellaridan | F1 |

@@ -322,6 +322,8 @@ CREATE TABLE probe_uptime_daily (    -- uzoq muddatli uptime hisobi (FR-HTTP-009
   PRIMARY KEY (probe_id, day)
 );
 
+-- S5: `cert_status` ORM da; UNIQUE (name, source, server) NULL larni teng hisoblaydi (agentsiz yozuvda server NULL).
+-- Yangi: `settings(key, value jsonb)` — tizim sozlamalari (hozircha `retired_ips`, Q-12; `seed_registry` yozadi).
 CREATE TABLE cert_status (           -- eng oxirgi sertifikat holati (TLS probe yoki agent)
   id          bigserial PRIMARY KEY,
   domain_id   uuid REFERENCES domains(id),
@@ -341,6 +343,7 @@ CREATE TABLE cert_status (           -- eng oxirgi sertifikat holati (TLS probe 
 CREATE TABLE dns_results (
   time       timestamptz NOT NULL,
   domain_id  uuid        NOT NULL,
+  probe_id   uuid        NOT NULL,   -- S5: qaysi DNS tekshiruvi (bir domenda bir nechta bo'lishi mumkin)
   resolver   text        NOT NULL,     -- '8.8.8.8','1.1.1.1','9.9.9.9','ns:rdns1.ahost.uz'
   rtype      text        NOT NULL DEFAULT 'A',
   answers    text[]      NOT NULL DEFAULT '{}',

@@ -49,6 +49,10 @@ class Server(models.Model):
     status = models.CharField(max_length=10, choices=Status, default=Status.NEW)
     last_seen_at = models.DateTimeField(null=True, blank=True)
     paused_at = models.DateTimeField(null=True, blank=True)
+    paused_until = models.DateTimeField(
+        null=True, blank=True
+    )  # muddati o'tgach avtomatik davom etadi
+    pause_reason = models.CharField(max_length=200, blank=True, default="")
     paused_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )

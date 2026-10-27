@@ -21,7 +21,8 @@ from django.db import connection
 from apps.heartbeats.models import HeartbeatJob
 from apps.metrics.models import Series, SeriesLatest
 from apps.notifications.models import Channel, Notification
-from apps.registry.models import Server
+from apps.probes.models import Probe
+from apps.registry.models import Project, Server
 
 MAX_DEPTH = 3
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,99}$")
@@ -43,6 +44,8 @@ STATE_SOURCES: dict[str, dict[str, type]] = {
     "heartbeat_job": {"overdue": bool, "failed": bool},
     "channel": {"failing": bool},
     "fleet": {"mass_silent": bool},
+    "probe": {"state": str},  # S4: faol tekshiruv holati (cond.primary — ixtiyoriy filtr)
+    "prober": {"stalled": bool},  # AL-085
 }
 FRESH_MIN_S = 120  # 'last' qiymati shundan eski bo'lsa "ma'lumot yo'q"
 MIN_FORECAST_POINTS = 6
@@ -136,6 +139,8 @@ def validate_condition(cond: Any, depth: int = 0, *, nested: bool = False) -> No
         expected = fields.get(cond.get("field", ""))
         if expected is None:
             raise ConditionError(f"field {', '.join(fields)} dan biri bo'lishi kerak")
+        if "primary" in cond and not isinstance(cond["primary"], bool):
+            raise ConditionError("primary true/false bo'lishi kerak")
         if not isinstance(cond.get("equals"), expected) or (
             expected is str and cond["equals"] not in ("up", "down")
         ):
@@ -522,6 +527,10 @@ def _state_other(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
             out.append(
                 Subject("channel", str(ch.pk), ch.name, f"channel:{ch.pk}", failing, None, detail)
             )
+    elif source == "probe":
+        out.extend(_state_probes(cond, ctx))
+    elif source == "prober":
+        out.append(_prober_stalled(ctx))
     else:  # fleet
         servers = [s for s in ctx.servers() if s.status != Server.Status.PAUSED]
         silent = [
@@ -541,6 +550,90 @@ def _state_other(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
             )
         )
     return out
+
+
+PROBER_STALL_S = 180
+
+
+def _last_error(probe: Probe) -> str:
+    from apps.probes.services import recent_results
+
+    rows = recent_results(probe.pk, None, None, 1)
+    if not rows or rows[0]["ok"]:
+        return ""
+    row = rows[0]
+    status = f"HTTP {row['status_code']}, " if row["status_code"] else ""
+    return f"{status}{row['error_kind'] or 'xato'}"
+
+
+def _state_probes(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
+    """Faol tekshiruv `down`/`up` holati. Ko'chirilmagan (moved=false) yoki arxivlangan loyiha tekshiruvlari
+    hisoblanmaydi (FR-REG-006/007). Incident qamrovi — loyiha (yo'q bo'lsa tekshiruvning o'zi)."""
+    primary = cond.get("primary")
+    out = []
+    probes = Probe.objects.filter(enabled=True).select_related("project", "domain")
+    for probe in probes:
+        project: Project | None = probe.project
+        if project is not None and (not project.moved or project.status != Project.Status.ACTIVE):
+            continue
+        is_primary = bool(probe.config.get("primary"))
+        if primary is not None and is_primary != primary:
+            continue
+        if probe.state in (Probe.State.UNKNOWN, Probe.State.PAUSED):
+            firing = None
+            detail = "hali tasdiqlanmagan"
+        else:
+            firing = probe.state == cond["equals"]
+            since = (
+                f"{_human((ctx.now - probe.state_since).total_seconds())} dan beri"
+                if probe.state_since
+                else ""
+            )
+            detail = " ".join(
+                x
+                for x in (_last_error(probe) if probe.state == Probe.State.DOWN else "", since)
+                if x
+            )
+        labels = {
+            "project_id": str(project.pk) if project else "",
+            "project": project.name if project else "",
+        }
+        if probe.domain is not None:
+            labels["domain"] = probe.domain.fqdn
+        scope_key = f"project:{project.pk}" if project else f"probe:{probe.pk}"
+        out.append(
+            Subject("probe", str(probe.pk), probe.name, scope_key, firing, None, detail, labels)
+        )
+    return out
+
+
+def _prober_stalled(ctx: Ctx) -> Subject:
+    probes = list(Probe.objects.filter(enabled=True))
+    if not probes:
+        return Subject("system", "prober", "Prober", "system", False, None, "faol tekshiruv yo'q")
+    ran = [p.last_run_at for p in probes if p.last_run_at]
+    if ran:
+        age = (ctx.now - max(ran)).total_seconds()
+        return Subject(
+            "system",
+            "prober",
+            "Prober",
+            "system",
+            age > PROBER_STALL_S,
+            age,
+            f"hech bir tekshiruv {_human(age)} bajarilmadi",
+        )
+    oldest = min(p.created_at for p in probes)
+    waited = (ctx.now - oldest).total_seconds()
+    return Subject(
+        "system",
+        "prober",
+        "Prober",
+        "system",
+        True if waited > PROBER_STALL_S else None,
+        waited,
+        "tekshiruvlar hali bir marta ham bajarilmagan",
+    )
 
 
 def evaluate_rule(rule: Any, ctx: Ctx) -> list[Subject]:

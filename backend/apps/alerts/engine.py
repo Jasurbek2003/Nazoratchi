@@ -296,10 +296,20 @@ def _close_incidents(now: datetime, stats: CycleStats) -> None:
             )
 
 
+def _resume_expired_pauses(now: datetime) -> None:
+    """`until` bilan pauzaga qo'yilgan serverlar muddati tugagach o'zi davom etadi (FR-HST-016)."""
+    from apps.registry.models import Server
+    from apps.registry.server_actions import resume
+
+    for server in Server.objects.filter(status=Server.Status.PAUSED, paused_until__lte=now):
+        resume(server, "tizim (muddat tugadi)")
+
+
 def run_cycle(now: datetime | None = None) -> CycleStats:
     started = time.monotonic()
     now = now or timezone.now()
     stats = CycleStats()
+    _resume_expired_pauses(now)
     _evaluate_states(now, stats)
     _notify_phase(now, stats)
     _refresh_suppressed(now)

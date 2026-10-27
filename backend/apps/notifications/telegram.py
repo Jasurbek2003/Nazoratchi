@@ -34,6 +34,20 @@ def _redact(text: str, token: str) -> str:
     return text.replace(token, "***") if token else text
 
 
+def answer_callback(bot_token: str, callback_id: str, text: str) -> None:
+    """Tugma bosilganda foydalanuvchiga qisqa javob (toast). Xatoda `TelegramError`."""
+    url = f"{settings.TELEGRAM_API_BASE}/bot{bot_token}/answerCallbackQuery"
+    try:
+        with make_client() as client:
+            response = client.post(url, json={"callback_query_id": callback_id, "text": text[:200]})
+    except httpx.HTTPError as exc:
+        raise TelegramError(
+            f"tarmoq xatosi: {_redact(type(exc).__name__, bot_token)}", retryable=True
+        ) from None
+    if response.status_code != 200:
+        raise TelegramError(f"HTTP {response.status_code}", retryable=response.status_code >= 500)
+
+
 def send_message(
     bot_token: str,
     chat_id: int | str,

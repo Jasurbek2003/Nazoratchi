@@ -7,8 +7,9 @@ from typing import Any
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.http import HttpResponse
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -37,8 +38,24 @@ class ServerListView(APIView):
         return [IsAuthenticated()]
 
     def get(self, request: Request) -> Response:
-        servers = Server.objects.exclude(status=Server.Status.ARCHIVED).order_by("name")
-        return Response({"items": ServerSerializer(servers, many=True).data})
+        q = request.query_params
+        archived = q.get("status") == Server.Status.ARCHIVED
+        servers = (
+            Server.objects.all()
+            if archived
+            else Server.objects.exclude(status=Server.Status.ARCHIVED)
+        )
+        if status := q.get("status"):
+            servers = servers.filter(status=status)
+        if tag := q.get("tag"):
+            servers = servers.filter(tags__contains=[tag])
+        if text := q.get("q"):
+            servers = servers.filter(
+                Q(name__icontains=text)
+                | Q(provider__icontains=text)
+                | Q(public_ipv4__startswith=text)
+            )
+        return Response({"items": ServerSerializer(servers.order_by("name"), many=True).data})
 
     def post(self, request: Request) -> HttpResponse:
         serializer = ServerSerializer(data=request.data)
@@ -62,13 +79,46 @@ class ServerListView(APIView):
 
 
 class ServerDetailView(APIView):
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self) -> list[Any]:
+        classes: list[type[BasePermission]] = [IsAuthenticated]
+        if self.request.method == "PATCH":
+            classes.append(roles("owner", "operator"))
+        return [p() for p in classes]
 
     def get(self, request: Request, pk: str) -> HttpResponse:
+        from apps.alerts.models import Incident
+
         server = Server.objects.filter(pk=pk).first()
         if server is None:
             return error_response("not_found", "Server topilmadi.", 404)
-        return Response(ServerSerializer(server).data)
+        open_incidents = (
+            Incident.objects.filter(scope_key=f"host:{server.pk}")
+            .exclude(status="resolved")
+            .count()
+        )
+        return Response({**ServerSerializer(server).data, "open_incidents": open_incidents})
+
+    def patch(self, request: Request, pk: str) -> HttpResponse:
+        server = Server.objects.filter(pk=pk).exclude(status=Server.Status.ARCHIVED).first()
+        if server is None:
+            return error_response("not_found", "Server topilmadi.", 404)
+        before = ServerSerializer(server).data
+        serializer = ServerSerializer(server, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError:
+            return error_response("duplicate", "Bunday nomli server mavjud.", 409)
+        record(
+            "server.update",
+            request=request._request,
+            object_type="server",
+            object_id=server.pk,
+            before=before,
+            after=serializer.data,
+        )
+        return Response(serializer.data)
 
 
 class ServerEnrollTokenView(APIView):

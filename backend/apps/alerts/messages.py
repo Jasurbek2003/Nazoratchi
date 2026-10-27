@@ -49,6 +49,8 @@ def alert_message(instance: AlertInstance, *, joined: bool = False) -> Message:
     onset = instance.pending_since or instance.firing_since
     if onset:
         lines.append(f"Qachondan: {local_time(onset)} (Asia/Tashkent)")
+    if instance.subject_type == "probe" and instance.labels.get("project"):
+        lines.append(f"Loyiha: {instance.labels['project']}")
     if instance.subject_type == "host":
         server_id = instance.subject_id.split(":")[0]
         projects = affected_projects(server_id)
@@ -71,6 +73,7 @@ def alert_message(instance: AlertInstance, *, joined: bool = False) -> Message:
         lines=lines,
         runbook=hint,
         path=f"/incidents/{instance.incident_id}" if instance.incident_id else "",
+        incident_id=str(instance.incident_id or ""),
     )
 
 
@@ -86,6 +89,7 @@ def reminder_message(incident: Incident, active: list[AlertInstance], now: datet
         title=f"Eslatma: {incident.title}",
         lines=lines,
         path=f"/incidents/{incident.pk}",
+        incident_id=str(incident.pk),
     )
 
 

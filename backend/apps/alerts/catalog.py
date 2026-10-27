@@ -108,6 +108,21 @@ BUILT_IN: list[dict[str, Any]] = [
         "condition": {"type": "state", "source": "channel", "field": "failing", "equals": True},
         "runbook_key": "RB-041", "runbook_hint": "bot tokeni va chat ID ni tekshiring; bot bloklanmaganmi?",
     },
+    {
+        "key": "AL-049", "name": "Sayt ishlamayapti", "scope": {"type": "probe"}, "for_seconds": 0, "severity": "critical",
+        "condition": {"type": "state", "source": "probe", "field": "state", "equals": "down", "primary": True},
+        "runbook_key": "RB-025", "runbook_hint": "avval serverni (`docker ps`, nginx logi), keyin DNS va sertifikatni tekshiring",
+    },
+    {
+        "key": "AL-049H", "name": "Sayt ishlamayapti (asosiy emas)", "scope": {"type": "probe"}, "for_seconds": 0, "severity": "high",
+        "condition": {"type": "state", "source": "probe", "field": "state", "equals": "down", "primary": False},
+        "runbook_key": "RB-025", "runbook_hint": "avval serverni (`docker ps`, nginx logi), keyin DNS va sertifikatni tekshiring",
+    },
+    {
+        "key": "AL-085", "name": "Prober qotdi", "scope": {"type": "system"}, "for_seconds": 0, "severity": "high",
+        "condition": {"type": "state", "source": "prober", "field": "stalled", "equals": True},
+        "runbook_key": "RB-040", "runbook_hint": "`run_prober` jarayoni ishlayaptimi? loglarni tekshiring",
+    },
 ]  # fmt: skip
 
 

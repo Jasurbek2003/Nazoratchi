@@ -1,0 +1,98 @@
+# Nazoratchi boshlang'ich reyestri (TZ 18.5). `manage.py seed_registry` yuklaydi; qayta ishga tushirish xavfsiz (mavjudga tegmaydi).
+# Qiymati aniqlanmagan maydonlar bo'sh. Hujjat bilan farq qilsa, manba shu fayl.
+version: 1
+retired_ips: [34.173.220.247]   # GCP o'chirilgan (Q-12)
+
+servers:
+  - { name: main-2,     provider: Contabo, public_ipv4: 164.68.105.194, role: production, tags: [contabo, docker, appctl, watchdog] }
+  - { name: vmd208589,  provider: "",      public_ipv4: 173.249.37.152, role: production, tags: [docker, front-proxy, aaclub] }
+  - { name: core-1,     provider: Contabo, public_ipv4: 185.214.135.9,  role: core,       tags: [contabo, core, offsite] }   # S-00, Owner qarori
+  - { name: backup-1,   provider: "",      public_ipv4: 38.242.143.248, role: unused,     tags: [unused], status: archived }       # S-03 ishlatilmaydi (Q-07)
+
+projects:
+  - slug: Nazar
+    name: Nazar (Beyondlinks)
+    kind: compose
+    servers: [{ server: main-2, environment: production, ports: [8020, 3020] }]
+    domains:
+      - { fqdn: nazar.avlo.ai,       primary: true, dns_provider: Namecheap }
+      - { fqdn: app.beyondlinks.uz,  primary: true, dns_provider: "" }
+    probes:
+      - { type: http, url: "https://nazar.avlo.ai/healthz/", expected_status: [200] }
+    backup: { expect_daily: true, require_offsite: true, db: postgres16 }
+
+  - slug: BiznesRadar
+    name: BiznesRadar
+    kind: compose
+    servers: [{ server: main-2, environment: production, ports: [8030, 4321] }]
+    domains:
+      - { fqdn: biznesradar.uz,        primary: true }
+      - { fqdn: api.biznesradar.uz }
+      - { fqdn: admin.biznesradar.uz }
+      - { fqdn: cabinet.biznesradar.uz }
+    backup: { expect_daily: true, expect_weekly_files: true, db: postgres17 }
+
+  - slug: beyondlinks_landing
+    name: Beyondlinks landing
+    kind: static
+    servers: [{ server: main-2, environment: production }]
+    domains: [{ fqdn: beyondlinks.uz, primary: true }]
+    backup: { expect_daily: false }
+
+  - slug: freighthubllc
+    name: FreightHub LLC
+    kind: static
+    servers: [{ server: main-2, environment: production }]
+    domains: [{ fqdn: freighthubllc.co, primary: true }, { fqdn: freighthubllc.com }]
+    backup: { expect_daily: false }
+
+  - slug: lutfan_ai
+    name: Lutfan AI
+    kind: compose
+    servers: [{ server: main-2, environment: production, ports: [8080, 9000] }]
+    domains: [{ fqdn: lutfanai.uz, primary: true }, { fqdn: lutfan.israilov.uz }]
+    backup: { expect_daily: true, expect_weekly_files: true, db: postgres15 }
+
+  - slug: wmg
+    name: WMG landing sahifalari
+    kind: compose
+    servers: [{ server: main-2, environment: production, ports: [8011, 8012] }]
+    domains:
+      - { fqdn: moliyaviyerkinlik.wmg.uz, controlled_by: client, dns_provider: Beget }
+      - { fqdn: investitsiya.wmg.uz,      controlled_by: client, dns_provider: Beget }
+    backup: { expect_daily: false, expect_weekly_files: true }      # SQLite + media
+
+  - slug: avlo_site
+    name: avlo.ai sayt va kontakt formasi
+    kind: static
+    servers: [{ server: main-2, environment: production, ports: [3017] }]
+    domains: [{ fqdn: avlo.ai, primary: true, dns_provider: Namecheap }, { fqdn: www.avlo.ai }]
+    services_systemd: [avlo-contact]
+    backup: { expect_daily: false }
+
+  - slug: asadbekashurov
+    name: asadbekashurov.uz landing
+    kind: static
+    servers: [{ server: vmd208589, environment: production, ports: [38080, 38443] }]
+    domains: [{ fqdn: asadbekashurov.uz, primary: true, dns_provider: ahost.uz }, { fqdn: www.asadbekashurov.uz }]
+    backup: { expect_daily: false }
+
+  - slug: aaclub_staging
+    name: Aaclub (staging)
+    kind: compose
+    servers: [{ server: vmd208589, environment: staging, ports: [28080, 28443] }]
+    domains: []        # *.staging.<domen> (aniqlanadi)
+    backup: { expect_daily: false }    # aniqlanadi
+
+  # Hali ko'chirilmagan (eski serverdan): reyestrda bor, tekshiruvsiz.
+  - { slug: Matnchi,   name: Matnchi,   kind: compose, moved: false, domains: [{ fqdn: matnchi.avlo.ai }] }
+  - { slug: CallAI,    name: CallAI,    kind: compose, moved: false, domains: [{ fqdn: call.avlo.ai }] }
+  - { slug: Transcription, name: Transcription, kind: systemd, moved: false, domains: [{ fqdn: transcription.avlo.ai }] }
+  - { slug: avlocorp,  name: avlocorp.com (Quran), kind: other, moved: false, domains: [{ fqdn: avlocorp.com }] }
+  - { slug: avloai_uz, name: avloai.uz, kind: static, moved: false, domains: [{ fqdn: avloai.uz }] }
+
+heartbeats:
+  - { name: appctl-backup@main-2,         server: main-2,    expected_every_s: 86400, grace_s: 7200 }
+  - { name: certbot-renew@main-2,         server: main-2,    expected_every_s: 86400, grace_s: 43200 }
+  - { name: asadbekashurov-certbot@vmd208589, server: vmd208589, expected_every_s: 86400, grace_s: 10800 }
+  - { name: nazoratchi-self-backup@core-1, server: core-1, expected_every_s: 86400, grace_s: 7200 }

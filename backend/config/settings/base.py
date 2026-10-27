@@ -41,6 +41,9 @@ NAZORATCHI_MASTER_KEY = master_key(
     env("NAZORATCHI_MASTER_KEY")
 )  # kanal sirlarini shifrlash (TZ 14.6)
 TELEGRAM_API_BASE = env("TELEGRAM_API_BASE", "https://api.telegram.org").rstrip("/")
+TELEGRAM_WEBHOOK_SECRET = env(
+    "TELEGRAM_WEBHOOK_SECRET", ""
+)  # bo'sh = webhook o'chiq (tugmalar ishlamaydi)
 TRUST_PROXY_HEADERS = env_bool("TRUST_PROXY_HEADERS")  # nginx orqasida True (X-Forwarded-For)
 
 INSTALLED_APPS = [
@@ -57,6 +60,7 @@ INSTALLED_APPS = [
     "apps.heartbeats",
     "apps.notifications",
     "apps.alerts",
+    "apps.probes",
 ]
 
 MIDDLEWARE = [

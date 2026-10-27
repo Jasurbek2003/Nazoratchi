@@ -95,6 +95,14 @@ class SuppressionContext:
         self._servers: dict[str, Server] = {}
         self._projects: dict[str, list[tuple[str, str]]] = {}
         ids = {i.subject_id.split(":")[0] for i in firing if i.subject_type == "host"}
+        # Faol tekshiruv (probe) alertlari: loyihaning serverlari bostirish uchun kerak.
+        probe_projects = {
+            i.labels.get("project_id") for i in firing if i.subject_type == "probe"
+        } - {None, ""}
+        self._project_servers: dict[str, set[str]] = {}
+        for row in ProjectServer.objects.filter(project_id__in=probe_projects):
+            self._project_servers.setdefault(str(row.project_id), set()).add(str(row.server_id))
+        ids |= {sid for servers in self._project_servers.values() for sid in servers}
         for server in Server.objects.filter(pk__in=ids):
             self._servers[str(server.pk)] = server
         for row in ProjectServer.objects.filter(server_id__in=ids).select_related("project"):
@@ -111,8 +119,20 @@ class SuppressionContext:
                 return True
         return False
 
+    def _probe_servers(self, inst: AlertInstance) -> set[str]:
+        return self._project_servers.get(inst.labels.get("project_id", ""), set())
+
     def labels_for(self, inst: AlertInstance) -> dict[str, list[str]]:
         labels = {"rule": [inst.rule.key], "severity": [inst.rule.severity]}
+        if inst.subject_type == "probe":
+            if inst.labels.get("project"):
+                labels["project"] = [inst.labels["project"]]
+            if inst.labels.get("domain"):
+                labels["domain"] = [inst.labels["domain"]]
+            names = [self._servers[s].name for s in self._probe_servers(inst) if s in self._servers]
+            if names:
+                labels["server"] = names
+            return labels
         server = (
             self._servers.get(inst.subject_id.split(":")[0])
             if inst.subject_type == "host"
@@ -127,9 +147,32 @@ class SuppressionContext:
                     labels[key] = [inst.labels[key]]
         return labels
 
+    def _probe_reason(self, inst: AlertInstance) -> str:
+        """Tekshiruv alerti: loyihaning HAMMA serveri pauzada / texnik ishda / o'chgan bo'lsa bostiriladi (6.7.3)."""
+        servers = self._probe_servers(inst)
+        project_id = inst.labels.get("project_id", "")
+        in_window = any(
+            project_id in {str(x) for x in w.scope.get("projects", [])} for w in self.windows
+        )
+        if servers and all(
+            self._servers[s].status == Server.Status.PAUSED for s in servers if s in self._servers
+        ):
+            return "pause"
+        if in_window or (servers and all(self._in_maintenance(s) for s in servers)):
+            return "maintenance"
+        if self.silences:
+            labels = self.labels_for(inst)
+            if any(matches(s.matchers, labels) for s in self.silences):
+                return "silence"
+        if servers and servers <= self.host_down:
+            return "host_down"
+        return ""
+
     def reason(self, inst: AlertInstance) -> str:
         """Bostirish sababi yoki '' (yuborish kerak). Ustuvorlik: pause > maintenance > silence > bog'liqlik."""
         rule = inst.rule
+        if inst.subject_type == "probe":
+            return self._probe_reason(inst)
         server_id = inst.subject_id.split(":")[0] if inst.subject_type == "host" else ""
         server = self._servers.get(server_id)
         if server is not None and server.status == Server.Status.PAUSED:

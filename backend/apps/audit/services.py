@@ -1,8 +1,10 @@
 """Audit yozuvi: maxfiy maydonlar maskalanadi (FR-AUD-002: parol/token qiymatlari jurnalda yo'q)."""
 
+import json
 import re
 from typing import Any
 
+from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpRequest
 
 from apps.core.net import client_ip
@@ -19,6 +21,13 @@ def mask(value: Any) -> Any:
     if isinstance(value, list | tuple):
         return [mask(v) for v in value]
     return value
+
+
+def _jsonable(value: Any) -> Any:
+    """UUID, datetime, Decimal kabi turlar JSON ga o'giriladi (serializer `.data` ularni xom holda qoldiradi)."""
+    if value is None:
+        return None
+    return json.loads(json.dumps(value, cls=DjangoJSONEncoder))
 
 
 def record(
@@ -42,6 +51,6 @@ def record(
         action=action,
         object_type=object_type,
         object_id=str(object_id) if object_id != "" else "",
-        before=mask(before),
-        after=mask(after),
+        before=mask(_jsonable(before)),
+        after=mask(_jsonable(after)),
     )

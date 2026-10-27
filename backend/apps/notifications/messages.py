@@ -8,6 +8,8 @@ from typing import Any
 
 from django.conf import settings
 
+from . import callbacks
+
 MAX_LEN = 1000  # FR-NTF-003
 ICONS = {"critical": "🔴", "high": "🟠", "warning": "🟡", "info": "🔵"}
 RESOLVED_ICON = "✅"
@@ -22,6 +24,7 @@ class Message:
     path: str = ""  # panel yo'li: "/incidents/0193..."; PUBLIC_URL ga qo'shiladi
     link_label: str = "Incident"
     resolved: bool = False
+    incident_id: str = ""  # bo'lsa va tiklanmagan bo'lsa: "Qabul qilaman" va "1 soat jim" tugmalari
 
 
 def _link(path: str) -> str:
@@ -59,7 +62,14 @@ def render(msg: Message) -> dict[str, Any]:
     if tail:
         parts.append("\n".join(tail))
     text = "\n\n".join(parts)
-    buttons = [{"text": "Panelda ochish", "url": link}] if link else []
+    buttons: list[dict[str, str]] = []
+    if msg.incident_id and not msg.resolved:
+        buttons += [
+            {"text": "Qabul qilaman", "callback_data": callbacks.make("ack", msg.incident_id)},
+            {"text": "1 soat jim", "callback_data": callbacks.make("snz", msg.incident_id, "60")},
+        ]
+    if link:
+        buttons.append({"text": "Panelda ochish", "url": link})
     return {"text": text[:MAX_LEN], "buttons": buttons}
 
 

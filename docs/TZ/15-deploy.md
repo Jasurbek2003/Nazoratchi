@@ -172,6 +172,10 @@ services:
     <<: *app
     command: ["python", "-m", "workers.prober"]
 
+  notifier:                              # navbatdagi bildirishnomalarni yuboradi (S3 da evaluator ichiga o'tishi mumkin)
+    <<: *app
+    command: ["python", "manage.py", "notify_worker"]
+
   worker:
     <<: *app
     command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency", "2"]
@@ -215,7 +219,8 @@ Eslatmalar:
 | `PUBLIC_URL` | `https://nazoratchi.example.uz` | Alert havolalari, install buyrug'i |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST=db`, `DB_PORT=5432` | | Bazaga ulanish |
 | `REDIS_URL` | `redis://redis:6379/0` | |
-| `NAZORATCHI_MASTER_KEY` | base64, 32 bayt | Maxfiy maydonlarni shifrlash (14.6) |
+| `NAZORATCHI_MASTER_KEY` | base64, 32 bayt | Maxfiy maydonlarni shifrlash (14.6). **Majburiy**: yo'q yoki 32 bayt emas bo'lsa core ishga tushmaydi |
+| `TELEGRAM_API_BASE` | `https://api.telegram.org` | Ixtiyoriy; faqat sinov uchun (soxta Bot API) |
 | `TZ_DEFAULT` | `Asia/Tashkent` | UI uchun standart zona |
 | `TELEGRAM_BOT_TOKEN` | `<TOKEN>` | **Faqat boshlang'ich**; keyin panel orqali kanalda saqlanadi (shifrlangan) |
 | `TELEGRAM_WEBHOOK_SECRET` | tasodifiy | Webhook yo'li va sarlavha |

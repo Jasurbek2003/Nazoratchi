@@ -6,7 +6,7 @@
 |---|---|
 | **Hujjat turi** | Texnik topshiriq (Technical Specification) |
 | **Loyiha ishchi nomi** | Nazoratchi (Nazoratchi Monitor) |
-| **Versiya** | 1.7 (loyiha) |
+| **Versiya** | 1.8 (loyiha) |
 | **Sana** | 2026-10-26 |
 | **Holat** | Tasdiqlash uchun taqdim etilgan |
 | **Buyurtmachi / mahsulot egasi** | Jasurbek (Avlo loyihalari egasi) |
@@ -29,6 +29,7 @@
 | 1.5 | 2026-10-26 | Claude | E-02: `appctl list --json` / `status --json` amalga oshirildi va sinaldi (18.1 aniqlashtirildi: `state` ning `stopped`/`unknown` ma'nosi, `null` = olib bo'lmadi, xato JSON'i) |
 | 1.6 | 2026-10-26 | Claude | E-03: heartbeat `appctl` ichiga qo'yildi (cron.d ko'p qatorli namuna ishlamaydi; token `appctl.secret` 0600 da), `setup.sh --heartbeat-url`; 9.14 va 10.3.5 yangilandi. Buzuq `.appctl` endi loyihani `fail` qiladi |
 | 1.7 | 2026-10-27 | Claude | F1 S1 topilmalari: sessiya jadvali (`user_sessions`) va `public_id` unique emasligi (8.8); `__Host-` cookie faqat prod'da (14.3.4); `/healthz` ga loopback host orqali kirish (15.4, 15.5); prototip agent `enroll` (7.5.1) |
+| 1.8 | 2026-10-27 | Claude | F1 S2: Go agent (system/disk/net) va Telegram kanali amalga oshirildi. Aniqlashtirishlar: core xatosi `{"error": {...}}` (7.5.1); core buyruqlarini agent hali bajarmaydi (7.5.3); `notifications.payload`/`next_attempt_at` (8.8); kanal API: `config` faqat yoziladi, `config_masked`, test `502`, tarix sahifalash (9.9); qayta urinish jadvali (12.9.0); `notifier` servisi va `TELEGRAM_API_BASE` (15.4, 15.5) |
 
 Hujjatga o'zgartirish kiritish tartibi: har bir o'zgarish yangi qator sifatida shu jadvalga
 yoziladi; talab identifikatorlari (FR-..., NFR-...) hech qachon qayta ishlatilmaydi,

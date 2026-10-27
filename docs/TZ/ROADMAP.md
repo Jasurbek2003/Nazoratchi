@@ -59,6 +59,8 @@ Maqsad: texnik xavflarni erta yo'qotish (R-102 Timescale, R-103 Go, R-109 `appct
 
 **Holat (2026-10-26):** P-01 (repo, CI) va P-02 (prototip agent, ingest, grafik, Timescale sinovi; R-102 hal bo'ldi) bajarildi — [`docs/P-02-timescale-sinov.md`](../P-02-timescale-sinov.md). E-01 (`appctl` `state.json`/`_run.json`) bajarildi — [`deploy/appctl-patches/`](../../deploy/appctl-patches/README.md). E-02 (`list --json`, `status --json`) bajarildi. E-03 (heartbeat) bajarildi. **F0 ning barcha ishlari tugadi**: M0 mezonlari bajarilgan, qaror nuqtasi №1 (F1 ga o'tish) turibdi.
 
+**Holat (2026-10-27, S2):** Go agent (`agent/`: system, disk, net kollektorlari, diskdagi navbat, backoff, enroll, `agent_*` metrikalari) haqiqiy backend bilan sinaldi (enroll, 116 namuna bazada, toza to'xtash); CI da `go vet`, `staticcheck`, `go test -race`, `govulncheck`, amd64+arm64. B8: Telegram kanali (sirlar AES-256-GCM bilan shifrlangan), xabar shabloni, 5 urinishli qayta yuborish, kanal API va `notify_worker`. **Soxta Bot API bilan sinaldi, haqiqiy Telegram bot bilan hali emas.** Qolgan: agent kollektorlari diskio/docker/systemd/backup/certs/ssh/apt (S5-S7), core buyruqlari, Telegram tugmalari/webhook (S4), email zaxira kanali (F2).
+
 **Holat (2026-10-27):** F1 / S1 bajarildi: B1 (auth, sessiyalar, RBAC, audit, to'liq reyestr modellari, Dockerfile va CI da image build) va B3 ning S1 qismi (`/ingest/v1/enroll`, `/goodbye`, `/hb/<token>`). `appctl heartbeat` ishlayotgan backend'ga qarshi sinaldi; prototip agent `enroll` oqimini biladi. Navbatda: S2 (Go agent, Telegram) va B2 (reyestr CRUD, S4 dan oldinga olinishi mumkin). `appctl`/`setup.sh` jonli serverlarga hali qo'llanmagan.
 
 > **Qaror nuqtasi №1 (R-118).** F0 oxirida: Timescale ishladimi? Go agent uchun tayyormisiz?

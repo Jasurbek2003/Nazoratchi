@@ -354,6 +354,16 @@ Ahamiyat bo'yicha (asosiy daraja): `critical` 13, `high` 30, `warning` 36, `info
 
 ## 12.9. Xabar shablonlari (Telegram, o'zbek tilida)
 
+### 12.9.0. Yuborish va qayta urinish (FR-NTF-004)
+
+Xabar avval `notifications` ga `queued` bo'lib yoziladi, `notifier` jarayoni yuboradi. Vaqtinchalik xatoda
+(tarmoq, `5xx`, `429`) jami 5 urinish: 1-dan keyin 5 s, 2-dan 15 s, 3-dan 60 s, 4-dan 300 s kutiladi;
+`429` da Telegram bergan `retry_after` ishlatiladi. Doimiy xatoda (`400`, `401`, `403`: noto'g'ri token yoki
+chat, bot bloklangan) qayta urinilmaydi: darhol `failed`, sabab `channels.last_error` da (panelda ko'rinadi).
+Telegram HTML rejimida yuboriladi, o'zgaruvchan matn (server nomi, log satri) ekranlanadi; sarlavha 150
+belgigacha, butun xabar 1000 belgigacha (uzun bo'lsa o'rtadagi satrlar qisqartiriladi, runbook va havola qoladi).
+Email zaxira kanali F2 da (FR-NTF-005); hozircha kanal ishlamasa faqat panelda ko'rinadi.
+
 Umumiy tuzilma: **ahamiyat belgisi + sarlavha**, bo'sh qator, **qayerda**, **nima bo'ldi**
 (qiymat va chegara), **qachondan**, **ta'sir**, **nima qilish kerak** (runbook), tugmalar.
 

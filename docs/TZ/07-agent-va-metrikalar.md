@@ -350,6 +350,9 @@ Xatolar:
 
 Boshqa hech qanday buyruq yo'q. Agent noma'lum buyruqni e'tiborsiz qoldiradi va logga yozadi.
 
+> **Holat (S2):** agent hozircha hech bir buyruqni bajarmaydi, faqat logga yozadi; `set_interval`, `reload_config` va
+> `update` keyingi sprintlarda (sozlamani qayta o'qish `SIGHUP` bilan ishlaydi).
+
 ## 7.6. Sozlama fayli
 
 `/etc/nazoratchi/agent.yaml` (egasi `root:nazoratchi`, rejim `0640`; token alohida `/etc/nazoratchi/token`, rejim `0600`, egasi `nazoratchi`):

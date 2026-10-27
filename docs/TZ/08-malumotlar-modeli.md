@@ -551,8 +551,12 @@ CREATE TABLE notifications (
   created_at   timestamptz NOT NULL DEFAULT now(),
   sent_at      timestamptz,
   external_id  text,                  -- Telegram message_id (tahrirlash uchun)
-  error        text
+  error        text,
+  payload      jsonb NOT NULL,        -- yuboriladigan xabar {"text","buttons"} (sirlarsiz); qayta urinish uchun
+  next_attempt_at timestamptz NOT NULL DEFAULT now()   -- status='queued' bo'lganda keyingi urinish vaqti
 );
+-- incident_id: incidents jadvali S3 da yaratiladi; shu paytgacha FK emas (keyin migratsiya bilan bog'lanadi).
+CREATE INDEX notifications_due_idx ON notifications(next_attempt_at) WHERE status = 'queued';
 CREATE INDEX notifications_idx ON notifications(incident_id, created_at);
 
 CREATE TABLE users (

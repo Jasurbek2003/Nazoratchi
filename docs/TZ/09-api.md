@@ -315,8 +315,20 @@ POST /api/v1/silences/
 | POST | `/channels/` | owner | Yaratish |
 | PATCH/DELETE | `/channels/{id}` | owner | O'zgartirish / o'chirish |
 | POST | `/channels/{id}/test` | owner | Sinov xabari (FR-ALR-020) |
-| GET | `/notifications/` | owner, operator | Yuborilgan xabarlar tarixi (muvaffaqiyat/xato) |
+| GET | `/notifications/` | owner, operator | Yuborilgan xabarlar tarixi (muvaffaqiyat/xato); `?channel=`, `?status=`, `?before=<id>` |
 | POST | `/telegram/webhook/{secret}` | Telegram | Bot callback (9.12) |
+
+Qoidalar (F1 S2):
+
+- Yaratishda `config` yoziladi: `{"bot_token": "123456:ABC...", "chat_id": -1001234567890}` (`chat_id` — butun son
+  yoki `@kanal_nomi`). Javobda `config` **hech qachon** qaytmaydi, o'rniga `config_masked`:
+  `{"bot_token": "••••", "chat_id": ...}`. Audit jurnaliga ham sir tushmaydi.
+- `PATCH` da `config` qisman bo'lishi mumkin: berilmagan kalit (masalan, `bot_token`) eskicha qoladi.
+  Kanal turini o'zgartirib bo'lmaydi. Hozircha faqat `telegram` (email F2, webhook F3) — qolganlari `400`.
+- `POST /channels/{id}/test`: bitta urinish, qayta urinishsiz. Muvaffaqiyatda `200 {"ok": true}`, Telegram xatosida
+  `502 {"ok": false, "error": "..."}` (xato matnida token bo'lmaydi).
+- `GET /notifications/`: 50 tadan, yangisidan eskisiga; keyingi sahifa uchun `next_before` qiymatini `?before=` ga bering
+  (`null` — oxiri). Xabar matni va sirlar tarixda qaytmaydi.
 
 ## 9.10. Hisobotlar, audit, tizim
 

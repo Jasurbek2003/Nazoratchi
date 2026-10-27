@@ -59,6 +59,8 @@ Maqsad: texnik xavflarni erta yo'qotish (R-102 Timescale, R-103 Go, R-109 `appct
 
 **Holat (2026-10-26):** P-01 (repo, CI) va P-02 (prototip agent, ingest, grafik, Timescale sinovi; R-102 hal bo'ldi) bajarildi — [`docs/P-02-timescale-sinov.md`](../P-02-timescale-sinov.md). E-01 (`appctl` `state.json`/`_run.json`) bajarildi — [`deploy/appctl-patches/`](../../deploy/appctl-patches/README.md). E-02 (`list --json`, `status --json`) bajarildi. E-03 (heartbeat) bajarildi. **F0 ning barcha ishlari tugadi**: M0 mezonlari bajarilgan, qaror nuqtasi №1 (F1 ga o'tish) turibdi.
 
+**Holat (2026-10-27):** F1 / S1 bajarildi: B1 (auth, sessiyalar, RBAC, audit, to'liq reyestr modellari, Dockerfile va CI da image build) va B3 ning S1 qismi (`/ingest/v1/enroll`, `/goodbye`, `/hb/<token>`). `appctl heartbeat` ishlayotgan backend'ga qarshi sinaldi; prototip agent `enroll` oqimini biladi. Navbatda: S2 (Go agent, Telegram) va B2 (reyestr CRUD, S4 dan oldinga olinishi mumkin). `appctl`/`setup.sh` jonli serverlarga hali qo'llanmagan.
+
 > **Qaror nuqtasi №1 (R-118).** F0 oxirida: Timescale ishladimi? Go agent uchun tayyormisiz?
 > Ish hajmi bahosi o'zgardimi? Shundan keyin F1 ga to'liq kirishiladi.
 

@@ -77,7 +77,7 @@ tizimda bir nechta maxfiy qiymat bor.
 | Parametr | Qiymat |
 |---|---|
 | Saqlash | Server tomonida (baza/Redis); cookie faqat tasodifiy identifikator |
-| Cookie | `HttpOnly; Secure; SameSite=Lax; Path=/`, nomi `__Host-nzr_sid` |
+| Cookie | `HttpOnly; Secure; SameSite=Lax; Path=/`, nomi `__Host-nzr_sid` (faqat prod; dev'da http bo'lgani uchun `nzr_sid`, `Secure`/`__Host-` brauzer tomonidan rad etilardi) |
 | Muddat | Harakatsizlik 12 soat; mutlaq 7 kun |
 | Aylantirish | Kirishdan keyin va rol/parol o'zgarganda yangi identifikator |
 | Chiqish | Serverda sessiya o'chiriladi; "barcha qurilmalardan chiqish" |

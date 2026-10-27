@@ -282,6 +282,9 @@ Javob (`200`):
 ```
 
 Xatolar: `401 invalid_enroll_token`, `410 enroll_token_expired`, `409 host_already_enrolled`.
+Xato tanasi umumiy formatda (`{"code":..., "message":..., "request_id":...}`, 9.1). Doimiy token agent tomonida
+`0600` rejimli faylda saqlanadi (enroll token bir martalik, qayta ishga tushganda yana kerak bo'lmasligi uchun);
+prototip agent: `--enroll-token` + `--token-file`. IP bo'yicha chegara: 10 so'rov/soat (14.7.3).
 
 ### 7.5.2. Metrika yuborish
 

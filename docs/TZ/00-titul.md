@@ -6,7 +6,7 @@
 |---|---|
 | **Hujjat turi** | Texnik topshiriq (Technical Specification) |
 | **Loyiha ishchi nomi** | Nazoratchi (Nazoratchi Monitor) |
-| **Versiya** | 1.6 (loyiha) |
+| **Versiya** | 1.7 (loyiha) |
 | **Sana** | 2026-10-26 |
 | **Holat** | Tasdiqlash uchun taqdim etilgan |
 | **Buyurtmachi / mahsulot egasi** | Jasurbek (Avlo loyihalari egasi) |
@@ -28,6 +28,7 @@
 | 1.4 | 2026-10-26 | Claude | E-01: `appctl` `state.json`/`_run.json` amalga oshirildi va sinaldi (10.3.1, 10.3.3, FR-INT-003 aniqlashtirildi: offsite `_run.json` da; `daily` `null` bo'lishi mumkin; haftalik `tar` xatosi endi zaxirani fail qiladi) |
 | 1.5 | 2026-10-26 | Claude | E-02: `appctl list --json` / `status --json` amalga oshirildi va sinaldi (18.1 aniqlashtirildi: `state` ning `stopped`/`unknown` ma'nosi, `null` = olib bo'lmadi, xato JSON'i) |
 | 1.6 | 2026-10-26 | Claude | E-03: heartbeat `appctl` ichiga qo'yildi (cron.d ko'p qatorli namuna ishlamaydi; token `appctl.secret` 0600 da), `setup.sh --heartbeat-url`; 9.14 va 10.3.5 yangilandi. Buzuq `.appctl` endi loyihani `fail` qiladi |
+| 1.7 | 2026-10-27 | Claude | F1 S1 topilmalari: sessiya jadvali (`user_sessions`) va `public_id` unique emasligi (8.8); `__Host-` cookie faqat prod'da (14.3.4); `/healthz` ga loopback host orqali kirish (15.4, 15.5); prototip agent `enroll` (7.5.1) |
 
 Hujjatga o'zgartirish kiritish tartibi: har bir o'zgarish yangi qator sifatida shu jadvalga
 yoziladi; talab identifikatorlari (FR-..., NFR-...) hech qachon qayta ishlatilmaydi,

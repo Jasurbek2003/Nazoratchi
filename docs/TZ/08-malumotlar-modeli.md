@@ -578,6 +578,23 @@ CREATE TABLE user_projects (          -- viewer cheklovi (FR-AUTH-005)
   PRIMARY KEY (user_id, project_id)
 );
 
+CREATE TABLE user_sessions (          -- Django sessiya saqlagichi + egasi (FR-AUTH-004); amalda Django nomi: accounts_usersession
+  session_key  varchar(40) PRIMARY KEY,
+  session_data text NOT NULL,
+  expire_date  timestamptz NOT NULL,
+  user_id      uuid,                           -- users.id; FK emas (Django sessiyani ro'yxatdan o'tkazmasdan yozadi); NULL: kirilmagan sessiya
+  public_id    uuid NOT NULL DEFAULT gen_random_uuid(),  -- API'da ko'rinadigan id; session_key hech qachon chiqmaydi
+  ip           inet,
+  user_agent   varchar(300) NOT NULL DEFAULT '',
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX user_sessions_expire_idx ON user_sessions(expire_date);
+CREATE INDEX user_sessions_user_idx ON user_sessions(user_id);
+CREATE INDEX user_sessions_public_idx ON user_sessions(public_id);   -- UNIQUE emas, pastga qarang
+-- `public_id` ataylab UNIQUE emas: Django `cycle_key()` yangi qatorni eskisi o'chirilishidan OLDIN
+-- yaratadi, UNIQUE bo'lsa `create()` cheksiz qayta uriniladi (S1 da topilgan). Ro'yxat/o'chirish
+-- so'rovlari `user_id` bilan birga filtrlanadi, shuning uchun to'qnashuv xavfsizlikka ta'sir qilmaydi.
+
 CREATE TABLE audit_log (
   id          bigserial PRIMARY KEY,
   time        timestamptz NOT NULL DEFAULT now(),

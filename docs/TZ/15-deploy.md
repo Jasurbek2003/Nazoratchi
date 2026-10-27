@@ -210,7 +210,7 @@ Eslatmalar:
 | `GHCR_OWNER` | `<tashkilot>` | Registry egasi |
 | `DJANGO_SETTINGS_MODULE` | `config.settings.prod` | |
 | `SECRET_KEY` | 50+ belgi, tasodifiy | Django |
-| `ALLOWED_HOSTS` | `nazoratchi.example.uz` | Vergul bilan |
+| `ALLOWED_HOSTS` | `nazoratchi.example.uz` | Vergul bilan. Prod sozlamasi `127.0.0.1` va `localhost` ni o'zi qo'shadi: konteyner healthcheck va host watchdog `/healthz` ga shu orqali kiradi (aks holda 400) |
 | `CSRF_TRUSTED_ORIGINS` | `https://nazoratchi.example.uz` | |
 | `PUBLIC_URL` | `https://nazoratchi.example.uz` | Alert havolalari, install buyrug'i |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST=db`, `DB_PORT=5432` | | Bazaga ulanish |

@@ -6,7 +6,7 @@
 |---|---|
 | **Hujjat turi** | Texnik topshiriq (Technical Specification) |
 | **Loyiha ishchi nomi** | Nazoratchi (Nazoratchi Monitor) |
-| **Versiya** | 1.9 (loyiha) |
+| **Versiya** | 1.10 (loyiha) |
 | **Sana** | 2026-10-26 |
 | **Holat** | Tasdiqlash uchun taqdim etilgan |
 | **Buyurtmachi / mahsulot egasi** | Jasurbek (Avlo loyihalari egasi) |
@@ -31,6 +31,7 @@
 | 1.7 | 2026-10-27 | Claude | F1 S1 topilmalari: sessiya jadvali (`user_sessions`) va `public_id` unique emasligi (8.8); `__Host-` cookie faqat prod'da (14.3.4); `/healthz` ga loopback host orqali kirish (15.4, 15.5); prototip agent `enroll` (7.5.1) |
 | 1.8 | 2026-10-27 | Claude | F1 S2: Go agent (system/disk/net) va Telegram kanali amalga oshirildi. Aniqlashtirishlar: core xatosi `{"error": {...}}` (7.5.1); core buyruqlarini agent hali bajarmaydi (7.5.3); `notifications.payload`/`next_attempt_at` (8.8); kanal API: `config` faqat yoziladi, `config_masked`, test `502`, tarix sahifalash (9.9); qayta urinish jadvali (12.9.0); `notifier` servisi va `TELEGRAM_API_BASE` (15.4, 15.5) |
 | 1.9 | 2026-10-27 | Claude | F1 S3: alert dvigateli amalga oshirildi (16 standart qoida). Aniqlashtirishlar: `state` manbalari va "ma'lumot yo'q" (12.3.5), `of` kaliti (12.3.6), ahamiyat bo'yicha bostirish va S3 da bo'lmagan qismlar (12.5), incident boshlanishi = shart rost bo'la boshlagan vaqt (6.7.2), `pending` uzluksizligi (6.7.1), qo'shimcha ustunlar (8.7), `evaluator`/`notifier` komandalari va healthcheck (15.4) |
+| 1.10 | 2026-10-27 | Claude | F1 S4: reyestr CRUD (serverlar, loyihalar, domenlar), seed, prober (HTTP/TCP), Telegram tugmalari. Aniqlashtirishlar: pauza `until`/sabab (8.3, 9.3), port to'qnashuvi va keyingi bo'sh port qoidasi (9.4), probe `DELETE` = arxiv va `allow_private` faqat Owner (9.6), webhook sirlari va `callback_data` formati (9.12), prober amalga oshirilishi: IP-pinning, qayta tekshiruv `next_run_at` orqali (6.8), `primary` kaliti (18.4), AL-049/049H/085 va `probe`/`prober` manbalari (12.3.5, 12.7), `prober`, `TELEGRAM_WEBHOOK_SECRET`, seed (15.4, 15.5) |
 
 Hujjatga o'zgartirish kiritish tartibi: har bir o'zgarish yangi qator sifatida shu jadvalga
 yoziladi; talab identifikatorlari (FR-..., NFR-...) hech qachon qayta ishlatilmaydi,

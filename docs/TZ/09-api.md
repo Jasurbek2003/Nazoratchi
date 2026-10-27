@@ -107,6 +107,8 @@ Set-Cookie: __Host-nzr_sid=...; HttpOnly; Secure; SameSite=Lax; Path=/
 | GET | `/servers/{id}/tokens` | owner | Agent tokenlari ro'yxati (token qiymatisiz) |
 | DELETE | `/servers/{id}/tokens/{token_id}` | owner | Tokenni bekor qilish |
 
+Qoidalar (S4): `GET /servers/` — `status` (arxivlangan faqat `?status=archived` bilan), `tag`, `q` (nom, provayder, IP boshi). `PATCH` da `status` va `name` dan boshqa tizim maydonlari o'zgarmaydi; nom takrorlansa `409`. `pause`: `{reason (majburiy), until? (≤ 90 kun)}`, muddat tugagach evaluator o'zi davom ettiradi; allaqachon pauzada bo'lsa `409`. `archive`: tokenlar bekor qilinadi, server alert bermaydi, tarix saqlanadi. `tokens` javobida token qiymati yo'q (faqat xesh saqlanadi). `GET /servers/{id}` ga `open_incidents` qo'shilgan.
+
 Namuna — server yaratish:
 
 ```http
@@ -149,6 +151,15 @@ POST /api/v1/servers/
 | PUT | `/domains/{id}/whois` | owner, operator | Domen muddatini qo'lda kiritish (`.uz` uchun) |
 | GET | `/registry/export` | owner | Butun reyestr YAML/JSON (FR-REG-009) |
 | POST | `/registry/import` | owner | Reyestrni import qilish (`?dry_run=true` bilan farqni ko'rsatadi) |
+
+Qoidalar (S4):
+
+- `POST /projects/` tanasi: loyiha maydonlari + ixtiyoriy `servers: [{server_id, environment, ports}]`, `domains: [{fqdn, ...}]`, `auto_probes` (standart `true`: ko'chirilgan loyihaning har domeni uchun HTTP tekshiruv). Hammasi bitta tranzaksiyada: biror domen takrorlansa loyiha ham yaratilmaydi (`409`). `slug` yaratilgandan keyin o'zgarmaydi.
+- **Port to'qnashuvi:** faol loyihalar orasida bir serverda bir port ikki marta berilsa `409 port_conflict`, `details[]` da band qilgan loyiha va keyingi bo'sh port taklifi. Arxivlangan loyiha portni bo'shatadi. Portlar 1024–65535, bir biriktirishda ≤ 10 ta; berilgan tartib saqlanadi.
+- **Keyingi bo'sh port** (`GET /projects/ports/next?server_id=`): `[A, B]`, A — 8000–8999 dagi eng kichik bo'sh port, B — `3000 + (A − 8000)`, u band bo'lsa 3000–3999 dagi eng kichik bo'sh. (REGISTRY.md qoidasining amalga oshirilgan talqini; hujjat bilan farq qilsa, shu yerni yangilang.)
+- `domains`: `fqdn` kichik harfga keltiriladi, oxirgi nuqta olib tashlanadi, IP va bir bo'g'inli nomlar rad etiladi. Domen `archived` bo'lsa uning tekshiruvlari o'chadi. Loyiha arxivlansa, uning tekshiruvlari ham o'chadi (alert yo'q, tarix qoladi).
+- `GET /projects/` standart holatda arxivlanganlarni ko'rsatmaydi; filtrlar: `status`, `q` (nom, slug, domen), `tag`, `server_id`, `moved`.
+- Yaratilmagan (keyingi sprintlar): `/projects/{id}/status`, `/domains/{id}/dns*`, `/domains/{id}/whois`, `/registry/export|import`.
 
 ## 9.5. Metrikalar so'rovi
 
@@ -230,6 +241,8 @@ POST /api/v1/probes/
 ```
 
 Konfiguratsiya sxemalari (tur bo'yicha) 18.4-bo'limda.
+
+Qoidalar (S4): hozircha `http` va `tcp` turlari (qolganlari `400`). `DELETE` tekshiruvni o'chirmaydi: `enabled=false`, `state=paused` (tarix saqlanadi); qayta yoqilganda holat `unknown` dan boshlanadi. `config.allow_private=true` (ichki manzillarga ruxsat, SSRF) faqat Owner tomonidan o'rnatiladi. `POST /probes/{id}/run` — bir marta bajaradi, natijani qayd etadi va tasdiqlash qoidasini qo'llaydi. `GET /probes/{id}/results`: `from`, `to`, `limit` (≤ 500). `GET /probes/{id}/uptime`: 1, 7, 30, 90 kun. `/certs/` — S5.
 
 ## 9.7. Zaxira nusxalar
 
@@ -373,8 +386,11 @@ yuborilgan voqealar (5 daqiqagacha) qayta yuboriladi.
 
 1. `X-Telegram-Bot-Api-Secret-Token` sarlavhasi sozlamadagi qiymatga teng bo'lishi kerak.
 2. `callback_query.from.id` / `message.chat.id` ruxsat etilgan chat ID lar ro'yxatida bo'lishi kerak.
-3. `callback_data` formati: `ack:<incident_id>`, `snooze:<incident_id>:<minutes>`. Imzo
-   (HMAC) bilan himoyalangan: `ack:<id>:<sig>`.
+3. `callback_data` formati: `ack:<incident_id>:<sig>`, `snz:<incident_id>:<daqiqa>:<sig>`. `sig` — HMAC-SHA256 ning dastlabki 12 hex belgisi
+   (kalit `SECRET_KEY` dan olingan; butun qiymat Telegram chegarasi 64 baytga sig'adi). Muddat 15 daqiqadan 24 soatgacha.
+   Chat ID kanallardan birining `chat_id` siga teng bo'lishi shart. Bosgan odam `users.telegram_chat_id` bilan bog'langan bo'lsa, uning roli tekshiriladi (`viewer` rad etiladi, audit shu foydalanuvchi nomidan); bog'lanmagan bo'lsa chat ruxsati yetarli va amal `telegram:<username>` deb yoziladi.
+   "1 soat jim" qamrovi: host incident'i — `server`, loyiha incident'i — `project`, qolgani — `rule`.
+   Maxfiy kalit `TELEGRAM_WEBHOOK_SECRET`: URL segmenti VA sarlavha ikkalasi ham shunga teng bo'lishi kerak; bo'sh bo'lsa webhook o'chiq. O'rnatish: `setWebhook(url=https://<core>/api/v1/telegram/webhook/<secret>, secret_token=<secret>)`.
 4. Javob har doim `200` (Telegram qayta yubormasligi uchun); ruxsatsiz so'rov faqat loglanadi.
 
 Qo'llab-quvvatlanadigan bot buyruqlari (F2):

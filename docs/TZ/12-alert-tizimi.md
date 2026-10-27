@@ -99,6 +99,8 @@ Amalga oshirilgan manbalar (S3):
 | `heartbeat_job` | `failed` | `true` | Oxirgi heartbeat `status=fail` |
 | `channel` | `failing` | `true` | Kanalga oxirgi 3 yuborish ketma-ket `failed` |
 | `fleet` | `mass_silent` | `true` | Hostlarning ≥ 50% (kamida 2 ta) 120 s dan beri jim (AL-008) |
+| `probe` | `state` | `"down"` / `"up"` | Faol tekshiruv holati (S4). Ixtiyoriy `primary: true/false` filtri (`config.primary`). `unknown`/`paused` holat — noma'lum. Ko'chirilmagan (`moved=false`) va arxivlangan loyiha tekshiruvlari hisoblanmaydi. Incident qamrovi — `project:<id>` |
+| `prober` | `stalled` | `true` | Yoqilgan tekshiruvlar bor, lekin hech biri 180 s da bajarilmagan (AL-085) |
 
 **"Ma'lumot yo'q" (uch qiymatli mantiq).** Shart hisoblanayotgan metrika yangi bo'lmasa (`last` uchun
 `max(window_s, 120)` s dan eski) yoki hisoblash uchun nuqta yetmasa, natija `rost`/`yolg'on` emas, *noma'lum*.
@@ -375,7 +377,8 @@ Metrika nomlari 7-bo'limdagi katalogga mos. `*` — chegara sozlanadi.
 Ahamiyat bo'yicha (asosiy daraja): `critical` 13, `high` 30, `warning` 36, `info` 10.
 
 > **S3 da yoqilgan standart qoidalar (16 ta):** AL-001, 002, 003, 008, 009, 014, 015, 019, 020, 021, 022, 023, 025,
-> 047, 048, 086. Qolgan F1 qoidalari (docker, tekshiruvlar, sertifikat, DNS, zaxira) ularning ma'lumoti paydo bo'lgan
+> 047, 048, 086.
+> **S4 da qo'shilgan (3 ta):** AL-049 (asosiy sayt, `critical`), AL-049H (asosiy bo'lmagan, `high`: katalogdagi "critical (teg `primary`) / high" ikki qoidaga bo'lingan), AL-085 (prober qotdi). Tekshiruv alertlari loyihaning HAMMA serveri pauzada/texnik ishda yoki o'chgan bo'lsa bostiriladi (6.7.3). Qolgan F1 qoidalari (docker, tekshiruvlar, sertifikat, DNS, zaxira) ularning ma'lumoti paydo bo'lgan
 > sprintda qo'shiladi. AL-084/085 tashqi kuzatuvchi (watchdog, S7) bilan. Standart qoidalar bazada yo'q bo'lsagina
 > yaratiladi: foydalanuvchi o'zgartirgan chegaraga tegilmaydi.
 

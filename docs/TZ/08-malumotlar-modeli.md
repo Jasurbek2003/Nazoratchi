@@ -492,6 +492,8 @@ CREATE TABLE alert_instances (
 );
 CREATE INDEX alert_instances_state_idx ON alert_instances(state) WHERE state <> 'ok';
 
+-- Amalga oshirishda qo'shilgan ustunlar (S4): servers.paused_until, servers.pause_reason (pauza muddati va sababi, FR-HST-016);
+-- probe_results — ORM modeli emas, migratsiyada SQL bilan yaratilgan gipertablitsa; probes.secrets_enc hozircha ishlatilmaydi.
 -- Amalga oshirishda qo'shilgan ustunlar (S3):
 --   alert_rules.runbook_hint text         -- xabardagi "Nima qilish kerak" matni
 --   incidents.last_notified_at, reminders_sent   -- takroriy eslatmalar (12.4.1)

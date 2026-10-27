@@ -380,6 +380,12 @@ va 7 kunlik oynalar ham hisoblanadi, **eng yomon (eng yaqin)** natija ishlatilad
 - **DNS.** `dnspython`, resolverlar ro'yxati; har resolver uchun alohida natija (`probe_dns_results`).
 - **Tasdiqlash qoidasi.** Muvaffaqiyatsiz natijadan keyin 15 s oraliq bilan 2 marta qayta
   tekshiriladi; 3 ketma-ket xato = `down`. Bitta muvaffaqiyat = `up`.
+  *Amalga oshirish (S4):* qayta tekshiruv oqimni uxlatmaydi — `next_run_at` 15 s ga suriladi; tasdiqlanmagan xatolarda holat
+  o'zgarmaydi (`unknown` bo'lsa `unknown` qoladi). Parallellik: `asyncio` o'rniga 50 oqimli `ThreadPoolExecutor`; vaqti kelganlar
+  `SELECT ... FOR UPDATE SKIP LOCKED` bilan olinib, `next_run_at` avval suriladi (bir nechta prober takrorlamaydi).
+- **IP-pinning (S4).** Nom bir marta aniqlanadi, tekshiruvdan o'tgan IP ga ulanadi; `Host` sarlavhasi va TLS SNI/sertifikat
+  tekshiruvi asl nomda qoladi (DNS rebinding oldini oladi, `resolve_to` shu mexanizm). Har yo'naltirish qayta aniqlanadi va
+  tekshiriladi. Vaqtlar (`dns/connect/tls/ttfb`) `httpx` trace hodisalaridan olinadi. S4 da faqat HTTP va TCP; TLS/DNS/WHOIS — S5.
 - **Ruxsat etilgan chiquvchi manzillar.** Prober ichki/loopback IP larga (SSRF xavfi) so'rov
   yubormaydi: manzil aniqlangach shaxsiy diapazonlar (`10/8`, `172.16/12`, `192.168/16`,
   `127/8`, `169.254/16`) rad etiladi (maxsus ruxsat bilan o'zgartiriladi).

@@ -453,7 +453,8 @@ zaxira fayli Owner'ning Telegram chatidan olinadi.
   "resolve_to": null,                    // "164.68.105.194" — cut-over oldindan tekshiruvi (SNI/Host saqlanadi)
   "latency_warn_ms": 3000,
   "max_body_bytes": 65536,
-  "allow_private": false
+  "allow_private": false,   // faqat Owner o'rnatadi (SSRF)
+  "primary": false          // true: AL-049 (critical), aks holda AL-049H (high)
 }
 ```
 
@@ -462,7 +463,7 @@ zaxira fayli Owner'ning Telegram chatidan olinadi.
 ```json
 { "host": "164.68.105.194", "port": 5432, "expect": "closed" }
 ```
-`expect`: `open` (standart) yoki `closed` (xavfsizlik tekshiruvi).
+`expect`: `open` (standart) yoki `closed` (xavfsizlik tekshiruvi). Qo'shimcha: `allow_private`, `primary` (http dagidek).
 
 ### 18.4.3. `tls`
 

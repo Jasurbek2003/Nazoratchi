@@ -269,7 +269,7 @@ def test_enroll_errors_carry_core_code(
     stub: tuple[type[_Stub], str], status: int, code: str
 ) -> None:
     handler, url = stub
-    handler.queued = [(status, {}, json.dumps({"code": code, "message": "x"}).encode())]
+    handler.queued = [(status, {}, json.dumps({"error": {"code": code, "message": "x"}}).encode())]
     with pytest.raises(EnrollError) as info:
         enroll(url, "enr_bad", {})
     assert (info.value.code, info.value.status) == (code, status)

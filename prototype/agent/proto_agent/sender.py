@@ -82,7 +82,7 @@ def enroll(url: str, enroll_token: str, facts: dict[str, Any], timeout: float = 
             data = json.loads(response.read())
     except urllib.error.HTTPError as exc:
         try:
-            code = json.loads(exc.read())["code"]
+            code = json.loads(exc.read())["error"]["code"]
         except (ValueError, KeyError, TypeError):
             code = "http_error"
         raise EnrollError(str(code), exc.code) from exc

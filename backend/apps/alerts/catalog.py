@@ -160,6 +160,36 @@ BUILT_IN: list[dict[str, Any]] = [
         "runbook_key": "RB-007", "runbook_hint": "domen o'chirilgan serverga qaraydi: A yozuvini yangi IP ga o'zgartiring",
     },
     {
+        "key": "AL-068", "name": "Zaxira kechikdi", "scope": {"type": "backup"}, "for_seconds": 0, "severity": "high",
+        "condition": {"type": "state", "source": "backup", "field": "age_hours_gt", "equals": 26},
+        "runbook_key": "RB-031", "runbook_hint": "`appctl backup <loyiha>` ni qo'lda ishga tushiring; cron va log (/var/log/appctl-backup.log) ni tekshiring",
+    },
+    {
+        "key": "AL-069", "name": "Zaxira uzoq vaqt olinmadi", "scope": {"type": "backup"}, "for_seconds": 0, "severity": "critical",
+        "condition": {"type": "state", "source": "backup", "field": "age_hours_gt", "equals": 50},
+        "runbook_key": "RB-031", "runbook_hint": "ma'lumot yo'qolish xavfi: zaxirani zudlik bilan qo'lda oling va sababni toping",
+    },
+    {
+        "key": "AL-070", "name": "Zaxira muvaffaqiyatsiz", "scope": {"type": "backup"}, "for_seconds": 0, "severity": "high",
+        "condition": {"type": "state", "source": "backup", "field": "last_failed", "equals": True},
+        "runbook_key": "RB-031", "runbook_hint": "`appctl backup <loyiha>` chiqishi va state.json dagi `error` ni ko'ring (dump, joy, ruxsat)",
+    },
+    {
+        "key": "AL-071", "name": "Zaxira shubhali: juda kichik", "scope": {"type": "backup"}, "for_seconds": 0, "severity": "high",
+        "condition": {"type": "state", "source": "backup", "field": "size_small", "equals": True},
+        "runbook_key": "RB-032", "runbook_hint": "bo'sh yoki yarim dump bo'lishi mumkin: faylni oching (`gzip -t`, `zcat | head`) va bazani tekshiring",
+    },
+    {
+        "key": "AL-072", "name": "Zaxira shubhali: juda katta", "scope": {"type": "backup"}, "for_seconds": 0, "severity": "info",
+        "condition": {"type": "state", "source": "backup", "field": "size_large", "equals": True},
+        "runbook_key": "RB-032", "runbook_hint": "hajm keskin o'sdi: ma'lumot yoki log jadvallari ko'paygan bo'lishi mumkin",
+    },
+    {
+        "key": "AL-075", "name": "Offsite zaxira sozlanmagan", "scope": HOST, "for_seconds": 0, "severity": "warning",
+        "condition": _threshold("backup_offsite_configured", "==", 0),
+        "runbook_key": "RB-033", "runbook_hint": "appctl.conf da OFFSITE ni to'ldiring (S-00 dagi rrsync papkasi): zaxira faqat shu serverda",
+    },
+    {
         "key": "AL-085", "name": "Prober qotdi", "scope": {"type": "system"}, "for_seconds": 0, "severity": "high",
         "condition": {"type": "state", "source": "prober", "field": "stalled", "equals": True},
         "runbook_key": "RB-040", "runbook_hint": "`run_prober` jarayoni ishlayaptimi? loglarni tekshiring",

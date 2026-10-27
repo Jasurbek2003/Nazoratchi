@@ -69,7 +69,7 @@ class ProjectSerializer(serializers.ModelSerializer[Project]):
         model = Project
         fields = [
             "id", "slug", "name", "description", "owner_name", "owner_contact", "kind", "moved", "status",
-            "tags", "links", "notes", "created_at", "updated_at", "servers_info", "domains_info",
+            "tags", "backup", "links", "notes", "created_at", "updated_at", "servers_info", "domains_info",
         ]  # fmt: skip
         read_only_fields = ["id", "status", "created_at", "updated_at"]
         extra_kwargs: dict[str, Any] = {"slug": {"validators": []}}
@@ -78,6 +78,20 @@ class ProjectSerializer(serializers.ModelSerializer[Project]):
         from .models import slug_validator
 
         slug_validator(value)
+        return value
+
+    def validate_backup(self, value: Any) -> Any:
+        keys = {
+            "expect_daily": bool,
+            "expect_weekly_files": bool,
+            "require_offsite": bool,
+            "db": str,
+        }
+        if not isinstance(value, dict) or set(value) - set(keys):
+            raise serializers.ValidationError(f"Ruxsat etilgan kalitlar: {', '.join(keys)}.")
+        for k, v in value.items():
+            if not isinstance(v, keys[k]) or (k == "db" and len(str(v)) > 30):
+                raise serializers.ValidationError(f"{k}: {keys[k].__name__} bo'lishi kerak.")
         return value
 
     def get_servers_info(self, obj: Project) -> list[dict[str, Any]]:

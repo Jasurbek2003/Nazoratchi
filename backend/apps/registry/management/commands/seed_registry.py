@@ -94,6 +94,7 @@ class Command(BaseCommand):
                     "name": row["name"],
                     "kind": row.get("kind", "other"),
                     "moved": row.get("moved", True),
+                    "backup": row.get("backup") or {},
                 },
             )
             if created:

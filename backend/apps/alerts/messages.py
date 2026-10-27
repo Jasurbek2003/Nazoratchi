@@ -49,7 +49,7 @@ def alert_message(instance: AlertInstance, *, joined: bool = False) -> Message:
     onset = instance.pending_since or instance.firing_since
     if onset:
         lines.append(f"Qachondan: {local_time(onset)} (Asia/Tashkent)")
-    if instance.subject_type in ("probe", "cert") and instance.labels.get("project"):
+    if instance.subject_type in ("probe", "cert", "backup") and instance.labels.get("project"):
         lines.append(f"Loyiha: {instance.labels['project']}")
     if instance.subject_type == "host":
         server_id = instance.subject_id.split(":")[0]

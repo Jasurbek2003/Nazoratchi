@@ -23,7 +23,7 @@ SILENCE_DEPENDENT_EXEMPT = {
     "AL-002",
     "AL-008",
 }  # host o'chganda bostirilmaydigan "sabab" alertlari
-PROBE_SUBJECTS = ("probe", "cert")
+PROBE_SUBJECTS = ("probe", "cert", "backup")
 DNS_KEYS = {"AL-062", "AL-063"}
 
 
@@ -38,6 +38,12 @@ def supersede_group(rule: Any) -> str | None:
         and cond.get("field") == "days_left_lte"
     ):
         return "cert_days_left"
+    if (
+        cond.get("type") == "state"
+        and cond.get("source") == "backup"
+        and cond.get("field") == "age_hours_gt"
+    ):
+        return "backup_age"
     return None
 
 

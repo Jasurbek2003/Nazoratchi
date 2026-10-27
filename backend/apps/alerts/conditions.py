@@ -48,6 +48,8 @@ STATE_SOURCES: dict[str, dict[str, type]] = {
     "prober": {"stalled": bool},  # AL-085
     "cert": {"days_left_lte": int, "invalid": bool},  # S5: sertifikat (TLS tekshiruvi)
     "dns": {"mismatch": bool, "retired": bool},  # S5: DNS tekshiruvi
+    # S6: loyiha zaxirasi (agent `backup_*` metrikalari + BackupRun tarixi); faqat expect_daily loyihalar
+    "backup": {"age_hours_gt": int, "last_failed": bool, "size_small": bool, "size_large": bool},
 }
 FRESH_MIN_S = 120  # 'last' qiymati shundan eski bo'lsa "ma'lumot yo'q"
 MIN_FORECAST_POINTS = 6
@@ -564,6 +566,8 @@ def _state_other(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
         out.extend(_state_certs(cond, ctx))
     elif source == "dns":
         out.extend(_state_dns(cond, ctx))
+    elif source == "backup":
+        out.extend(_state_backups(cond, ctx))
     else:  # fleet
         servers = [s for s in ctx.servers() if s.status != Server.Status.PAUSED]
         silent = [
@@ -586,6 +590,87 @@ def _state_other(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
 
 
 PROBER_STALL_S = 180
+
+
+def _state_backups(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
+    """Loyiha zaxirasi (FR-BKP-002/004/005). Faqat faol, ko'chirilgan va `backup.expect_daily` loyihalar.
+    Agent jim bo'lsa (metrikalar 15 daqiqadan eski) — noma'lum: jimlikni AL-001/002 ushlaydi."""
+    from apps.backups import services as bk
+    from apps.registry.models import ProjectServer
+
+    out = []
+    projects = [
+        p
+        for p in Project.objects.filter(status=Project.Status.ACTIVE, moved=True)
+        if (p.backup or {}).get("expect_daily")
+    ]
+    data = bk.collect(ctx.now, {p.slug for p in projects})
+    links: dict[Any, list[Any]] = {}
+    for link in ProjectServer.objects.filter(project__in=projects, environment="production"):
+        links.setdefault(link.project_id, []).append(link.server_id)
+    for project in projects:
+        servers = links.get(project.pk, [])
+        if not servers:
+            continue  # zaxira qaysi serverda turishi noma'lum
+        pbs = [data[(sid, project.slug)] for sid in servers if (sid, project.slug) in data]
+        pb = max(pbs, key=lambda x: x.seen_at or ctx.now) if pbs else None
+        field = cond["field"]
+        project_hours = (ctx.now - project.created_at).total_seconds() / 3600
+        firing: bool | None
+        detail = ""
+        value: float | None = None
+        if field == "age_hours_gt":
+            limit = cond["equals"]
+            if pb is None or pb.last_success_ts is None:
+                firing = True if project_hours > limit else None
+                detail = (
+                    "zaxira hech qachon olinmagan (agent ma'lumot bermagan)"
+                    if firing
+                    else "hali zaxira kutilmoqda"
+                )
+            elif not bk.agent_alive(pb, ctx.now):
+                firing, detail = None, "agent jim: zaxira holati noma'lum"
+            else:
+                value = (ctx.now.timestamp() - pb.last_success_ts) / 3600
+                firing = value > limit
+                detail = (
+                    f"oxirgi muvaffaqiyatli zaxira {value:.0f} soat oldin (chegara {limit} soat)"
+                )
+        elif field == "last_failed":
+            if pb is None or pb.last_status is None or not bk.agent_alive(pb, ctx.now):
+                firing, detail = None, "ma'lumot yo'q"
+            else:
+                firing = pb.last_status < 1
+                detail = (
+                    "oxirgi zaxira muvaffaqiyatsiz tugadi (appctl state.json)"
+                    if firing
+                    else "oxirgi zaxira muvaffaqiyatli"
+                )
+        else:  # size_small | size_large
+            check = bk.size_check(servers[0] if pb is None else pb.server_id, project.slug)
+            if check is None or (ctx.now - check.finished_at).total_seconds() > 72 * 3600:
+                firing, detail = None, "hajm tahlili uchun tarix yetarli emas (< 8 zaxira)"
+            else:
+                small = field == "size_small"
+                firing = check.ratio < bk.SMALL_RATIO if small else check.ratio > bk.LARGE_RATIO
+                value = check.ratio
+                detail = f"hajm {check.latest / 1e6:.1f} MB, oldingi 7 ta medianasi {check.median / 1e6:.1f} MB ({check.ratio:.2f}x)"
+        labels = _project_labels(project, "")
+        out.append(
+            Subject(
+                "backup",
+                project.slug,
+                project.slug,
+                f"project:{project.pk}",
+                firing,
+                value,
+                detail,
+                labels,
+            )
+        )
+    return out
+
+
 CERT_STALE_S = (
     2 * 86400
 )  # sertifikat holati shundan eski bo'lsa "ma'lumot yo'q" (tekshiruv to'xtagan)

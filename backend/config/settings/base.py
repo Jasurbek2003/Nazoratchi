@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.alerts",
     "apps.probes",
+    "apps.backups",
 ]
 
 MIDDLEWARE = [

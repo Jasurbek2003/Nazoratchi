@@ -310,6 +310,9 @@ def run_cycle(now: datetime | None = None) -> CycleStats:
     now = now or timezone.now()
     stats = CycleStats()
     _resume_expired_pauses(now)
+    from apps.backups.services import sync_runs
+
+    sync_runs(now)
     _evaluate_states(now, stats)
     _notify_phase(now, stats)
     _refresh_suppressed(now)

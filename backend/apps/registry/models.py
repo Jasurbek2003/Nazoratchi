@@ -88,6 +88,8 @@ class Project(models.Model):
     moved = models.BooleanField(default=True)  # False = "ko'chirilmagan"
     status = models.CharField(max_length=10, choices=Status, default=Status.ACTIVE)
     tags = ArrayField(models.CharField(max_length=40), default=list, blank=True)
+    # Zaxira siyosati (seed `backup:`): expect_daily, expect_weekly_files, require_offsite, db. Bo'sh = kuzatilmaydi.
+    backup = models.JSONField(default=dict, blank=True)
     links = models.JSONField(default=list, blank=True)  # [{label, url}]
     notes = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(default=timezone.now)

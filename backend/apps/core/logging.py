@@ -12,8 +12,12 @@ _SECRET_RE = re.compile(
 )
 
 
+# Telegram Bot API URL'ida token yo'l ichida: `/bot123456:ABC-def.../sendMessage`.
+_BOT_URL_RE = re.compile(r"/bot\d+:[A-Za-z0-9_-]+")
+
+
 def mask_secrets(text: str) -> str:
-    return _SECRET_RE.sub(r"\1***", text)
+    return _BOT_URL_RE.sub("/bot***", _SECRET_RE.sub(r"\1***", text))
 
 
 class JsonFormatter(logging.Formatter):

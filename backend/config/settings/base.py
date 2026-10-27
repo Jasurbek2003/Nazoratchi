@@ -1,5 +1,6 @@
 """Umumiy sozlamalar. Barcha qiymatlar muhit o'zgaruvchilaridan (12-factor, NFR-MNT-004)."""
 
+import base64
 import os
 from pathlib import Path
 
@@ -19,12 +20,27 @@ def env_bool(name: str, default: bool = False) -> bool:
     return env(name, "1" if default else "0").lower() in ("1", "true", "yes", "on")
 
 
+def master_key(raw: str) -> bytes:
+    """`NAZORATCHI_MASTER_KEY`: base64, aynan 32 bayt (AES-256-GCM, TZ 14.6). Noto'g'ri bo'lsa ishga tushmaydi."""
+    try:
+        key = base64.b64decode(raw, validate=True)
+    except ValueError as exc:
+        raise ImproperlyConfigured("NAZORATCHI_MASTER_KEY base64 emas.") from exc
+    if len(key) != 32:
+        raise ImproperlyConfigured("NAZORATCHI_MASTER_KEY aynan 32 bayt bo'lishi kerak.")
+    return key
+
+
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = False
 ALLOWED_HOSTS = [h for h in env("ALLOWED_HOSTS", "").split(",") if h]
 PUBLIC_URL = env("PUBLIC_URL", "http://127.0.0.1:8000").rstrip(
     "/"
 )  # alert havolalari, install buyrug'i
+NAZORATCHI_MASTER_KEY = master_key(
+    env("NAZORATCHI_MASTER_KEY")
+)  # kanal sirlarini shifrlash (TZ 14.6)
+TELEGRAM_API_BASE = env("TELEGRAM_API_BASE", "https://api.telegram.org").rstrip("/")
 TRUST_PROXY_HEADERS = env_bool("TRUST_PROXY_HEADERS")  # nginx orqasida True (X-Forwarded-For)
 
 INSTALLED_APPS = [
@@ -39,6 +55,7 @@ INSTALLED_APPS = [
     "apps.metrics",
     "apps.ingest",
     "apps.heartbeats",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [
@@ -124,4 +141,6 @@ LOGGING = {
     "formatters": {"json": {"()": "apps.core.logging.JsonFormatter"}},
     "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "json"}},
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
+    # httpx so'rov URL'ini INFO da yozadi, Telegram URL'i esa bot tokenini o'z ichiga oladi (TZ 14.9).
+    "loggers": {"httpx": {"level": "WARNING"}, "httpcore": {"level": "WARNING"}},
 }

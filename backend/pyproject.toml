@@ -5,8 +5,10 @@ description = "Nazoratchi — infratuzilma monitoringi platformasi (core)"
 requires-python = ">=3.13"
 dependencies = [
     "argon2-cffi>=23.1",
+    "cryptography>=50.0.2",
     "django>=5.2,<5.3",
     "djangorestframework>=3.15",
+    "httpx>=0.28.1",
     "psycopg[binary]>=3.2",
     "redis>=5.2",
     "uvicorn>=0.32",

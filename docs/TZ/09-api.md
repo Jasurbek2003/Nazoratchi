@@ -283,7 +283,7 @@ chegara), `failed` (oxirgi run `fail`), `suspicious` (hajm anomaliyasi), `unknow
 | POST | `/alert-rules/` | owner, operator | Yangi qoida |
 | GET/PATCH | `/alert-rules/{id}` | hamma / owner, operator | Ko'rish / o'zgartirish |
 | POST | `/alert-rules/{id}/test` | owner, operator | Qoidani hozirgi ma'lumotda quruq hisoblash (kim "firing" bo'lardi), alert yubormasdan |
-| GET | `/alerts/` | hamma (L) | Faol alert instance lar |
+| GET | `/alerts/` | hamma (L) | Faol alert instance lar (`pending`/`firing`/`resolving`) |
 | GET | `/incidents/` | hamma (L) | Incidentlar (`filter[status]`, `severity`, `server_id`, `project_id`, `from`, `to`) |
 | GET | `/incidents/{id}` | hamma (L) | Tafsilot: alertlar, ta'sirlanganlar, vaqt chizig'i |
 | POST | `/incidents/{id}/ack` | owner, operator | Qabul qilish (`{comment?}`) |

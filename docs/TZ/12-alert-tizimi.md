@@ -90,9 +90,30 @@ bo'lsa yoki bandlik `min_used_percent` dan kam bo'lsa — hisoblanmaydi (soxta b
 `source`: `probe` (tekshiruv holati), `backup` (zaxira holati: `status`, `age_h`), `cert`
 (`days_left`), `dns` (`status`), `heartbeat`. Boshqa manbalar uchun maxsus maydonlar 18.3-bo'limda.
 
+Amalga oshirilgan manbalar (S3):
+
+| `source` | `field` | `equals` | Ma'nosi |
+|---|---|---|---|
+| `reachability` | `tcp22` | `"up"` / `"down"` | Serverning `public_ipv4` ga TCP:22 ulanish (3 s, natija 20 s keshlanadi). Loopback va link-local manzillar tekshirilmaydi. Bu to'liq prober (S4/S5) kelguncha AL-001/AL-002 uchun minimal tashqi tekshiruv. IP kiritilmagan bo'lsa natija "noma'lum" |
+| `heartbeat_job` | `overdue` | `true` | `now − last_beat_at > expected_every_s + grace_s` (hali bir marta ham xabar bermagan bo'lsa — noma'lum) |
+| `heartbeat_job` | `failed` | `true` | Oxirgi heartbeat `status=fail` |
+| `channel` | `failing` | `true` | Kanalga oxirgi 3 yuborish ketma-ket `failed` |
+| `fleet` | `mass_silent` | `true` | Hostlarning ≥ 50% (kamida 2 ta) 120 s dan beri jim (AL-008) |
+
+**"Ma'lumot yo'q" (uch qiymatli mantiq).** Shart hisoblanayotgan metrika yangi bo'lmasa (`last` uchun
+`max(window_s, 120)` s dan eski) yoki hisoblash uchun nuqta yetmasa, natija `rost`/`yolg'on` emas, *noma'lum*.
+Holat mashinasi noma'lumda `FIRING`/`RESOLVING` ni o'zgartirmaydi (6.7.1): agent jim bo'lganda CPU alerti
+soxta "tiklandi" bo'lib qolmaydi; jimlikni AL-001/AL-002 ushlaydi. Birlashtirishda: `and` da bitta `yolg'on`
+yetarli (qolganlari hisoblanmaydi: qimmat TCP tekshiruvi faqat agent jim bo'lganda bajariladi), `or` da bitta `rost`.
+
+**Obyektlar (fan-out).** `threshold`, `rate`, `forecast` har mos seriya uchun alohida obyekt beradi (host × mount),
+`absent`, `reachability` va birlashtirishlar — har host uchun bitta, `heartbeat_job` — har job, `channel` — har kanal.
+Qoida `scope.tags`/`scope.ids` bilan serverlarga cheklanadi.
+
 ### 12.3.6. Birlashtirish
 
-`and` / `or` / `not` (chuqurligi ≤ 3):
+`and` / `or` / `not` (chuqurligi ≤ 3; operandlar `of` ro'yxatida, `not` uchun aynan bitta, `and`/`or` uchun 2..5; faqat
+host darajasidagi shartlar: `threshold`, `absent`, `rate`, `forecast`, `reachability`):
 
 ```json
 {"type": "and", "of": [
@@ -133,6 +154,17 @@ qabul qilinmasa — "ikkala kontaktga ham" xabar.
 ro'yxatida ko'rinadi va asosiy sabab hal bo'lganda, shart hamon rost bo'lsa, ularning o'zi
 yangidan hisoblanadi (masalan, server qaytdi, lekin konteyner hamon ishlamayapti — yangi
 xabar).
+
+### 12.5.1a. Ahamiyat bo'yicha bostirish (amalga oshirilgan)
+
+Bir obyekt va bir metrikada bir nechta chegara qoidasi bo'lsa (AL-019/020/021), ularning eng yuqori ahamiyatlisi
+`FIRING` bo'lganda pastroqlari bostiriladi (80% → 90% → 95% da uchta xabar o'rniga bittasi, eng og'iri).
+Yuqorisi yopilib pastrog'i hamon rost bo'lsa, pastrog'i xabar beradi. Bostirish sabablari: `pause`, `maintenance`,
+`silence`, `host_down` (AL-001 dan keyin shu hostning boshqa alertlari), `mass_silence` (AL-008 dan keyin AL-001/002),
+`superseded`. Bostirilgan alert incident'da qoladi.
+
+> **S3 holati.** Guruhlash (12.5.2), titrash/beqarorlik va gisterezis (12.5.3), eskalatsiya (12.4.2), sokin soatlar va
+> email hozircha yo'q (F2/F3). Tugma bilan `ack` (Telegram) S4 da; `ack` hozir API orqali.
 
 ### 12.5.2. Guruhlash
 
@@ -341,6 +373,11 @@ Metrika nomlari 7-bo'limdagi katalogga mos. `*` — chegara sozlanadi.
 | **Jami** | **89 ta** |
 
 Ahamiyat bo'yicha (asosiy daraja): `critical` 13, `high` 30, `warning` 36, `info` 10.
+
+> **S3 da yoqilgan standart qoidalar (16 ta):** AL-001, 002, 003, 008, 009, 014, 015, 019, 020, 021, 022, 023, 025,
+> 047, 048, 086. Qolgan F1 qoidalari (docker, tekshiruvlar, sertifikat, DNS, zaxira) ularning ma'lumoti paydo bo'lgan
+> sprintda qo'shiladi. AL-084/085 tashqi kuzatuvchi (watchdog, S7) bilan. Standart qoidalar bazada yo'q bo'lsagina
+> yaratiladi: foydalanuvchi o'zgartirgan chegaraga tegilmaydi.
 
 ## 12.8. Qoidani sozlash
 

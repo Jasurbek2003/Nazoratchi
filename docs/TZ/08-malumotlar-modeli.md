@@ -492,6 +492,13 @@ CREATE TABLE alert_instances (
 );
 CREATE INDEX alert_instances_state_idx ON alert_instances(state) WHERE state <> 'ok';
 
+-- Amalga oshirishda qo'shilgan ustunlar (S3):
+--   alert_rules.runbook_hint text         -- xabardagi "Nima qilish kerak" matni
+--   incidents.last_notified_at, reminders_sent   -- takroriy eslatmalar (12.4.1)
+--   alert_instances.subject_name, detail, suppressed, notified_at   -- xabar matni va bostirish holati
+-- `evaluator_state` (id=1, last_run_at, last_duration_ms): dvigatel ishlayotganini bildiradi (AL-084).
+-- notifications.incident_id -> incidents(id) ON DELETE SET NULL (migratsiya bilan bog'langan).
+
 CREATE TABLE incident_events (
   id          bigserial PRIMARY KEY,
   incident_id uuid NOT NULL REFERENCES incidents(id),

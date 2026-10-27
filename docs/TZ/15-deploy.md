@@ -164,9 +164,10 @@ services:
       timeout: 5s
       retries: 5
 
-  evaluator:
+  evaluator:                             # alert dvigateli (har 15 s); S3 da: manage.py buyrug'i
     <<: *app
-    command: ["python", "-m", "workers.evaluator"]
+    command: ["python", "manage.py", "run_evaluator", "--interval", "15"]
+    healthcheck: { disable: true }       # image'dagi HEALTHCHECK web uchun; ishchilarda :8000 yo'q
 
   prober:
     <<: *app
@@ -175,6 +176,7 @@ services:
   notifier:                              # navbatdagi bildirishnomalarni yuboradi (S3 da evaluator ichiga o'tishi mumkin)
     <<: *app
     command: ["python", "manage.py", "notify_worker"]
+    healthcheck: { disable: true }
 
   worker:
     <<: *app

@@ -334,7 +334,9 @@ zaxiralaydi; xuddi shu mexanizm bilan Nazoratchi **o'z zaxirasini** ham kuzatadi
   └───────────── `resolve_after` (standart 60 s) davomida yolg'on ─────────────────────────┘
 ```
 
-- `PENDING`: shart rost bo'ldi, lekin `for` hali o'tmadi — xabar yuborilmaydi.
+- `PENDING`: shart rost bo'ldi, lekin `for` hali o'tmadi — xabar yuborilmaydi. Agar shu paytda ma'lumot butunlay
+  yo'qolsa (agent jim), uzluksizlik tasdiqlanmagan hisoblanadi va holat `OK` ga qaytadi; aks holda agent bir soatdan
+  keyin qaytganda eski `PENDING` darrov `FIRING` bo'lib ketardi. `FIRING`/`RESOLVING` ma'lumot yo'qligida o'zgarmaydi.
 - `FIRING`: alert faol; incident ochiq.
 - `RESOLVING`: shart yolg'on bo'ldi, `resolve_after` kutiladi (titrashdan himoya, FR-ALR-018).
 - `OK`: yopildi; "tiklandi" xabari yuboriladi (agar FIRING bo'lgan bo'lsa).
@@ -345,7 +347,8 @@ zaxiralaydi; xuddi shu mexanizm bilan Nazoratchi **o'z zaxirasini** ham kuzatadi
 - **Incident** — bir yoki bir nechta alert instance dan tashkil topgan, odam uchun mo'ljallangan
   yagona voqea. Yangi alert, agar xuddi shu **qamrov kaliti** (masalan, `host:S-01`) bo'yicha
   ochiq incident bo'lsa, o'shanga qo'shiladi; aks holda yangi incident ochiladi.
-- Incident'ning ahamiyati = ichidagi alertlarning eng yuqorisi.
+- Incident'ning ahamiyati = ichidagi alertlarning eng yuqorisi. Incident `started_at` — birinchi alertning shart
+  rost bo'la boshlagan vaqti (`for` kutish davri ham kiradi), shuning uchun "Davomiyligi" haqiqiy muammo vaqtini ko'rsatadi.
 - Incident yopiladi: barcha alert instance lari `OK` bo'lganda (+ 60 s).
 
 ### 6.7.3. Bostirish (suppression) qoidalari

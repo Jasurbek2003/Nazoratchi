@@ -12,9 +12,10 @@ import time
 import uuid
 from collections import deque
 from collections.abc import Callable
+from pathlib import Path
 
 from .collectors import Collector, host_facts
-from .sender import Batch, Sender, SendResult
+from .sender import Batch, EnrollError, Sender, SendResult, enroll
 
 BUFFER_MAX_AGE_S = 15 * 60
 BACKOFF_STEPS = (1, 2, 4, 8, 16, 30)  # TZ 7.2 Sender
@@ -108,10 +109,41 @@ def run(
         sleep(max(0.0, interval - (time.monotonic() - started)))
 
 
+def resolve_token(args: argparse.Namespace) -> str | None:
+    """Token: --token; yoki token-fayl; yoki enroll (natija faylga 0600 bilan yoziladi)."""
+    if args.token:
+        return str(args.token)
+    path = Path(args.token_file) if args.token_file else None
+    if path is not None and path.is_file():
+        saved = path.read_text(encoding="utf-8").strip()
+        if saved:
+            return saved
+    if not args.enroll_token:
+        return None
+    enrolled = enroll(args.url, args.enroll_token, host_facts())
+    if path is not None:
+        # Enroll token bir martalik: doimiy token yo'qolsa, yangi enroll token kerak bo'ladi.
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(enrolled.agent_token + "\n")
+    print(f"enroll bajarildi: host {enrolled.host_id}")
+    return enrolled.agent_token
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Nazoratchi prototip agenti")
     parser.add_argument("--url", default=os.environ.get("NAZORATCHI_URL", "http://127.0.0.1:8000"))
     parser.add_argument("--token", default=os.environ.get("NAZORATCHI_TOKEN", ""))
+    parser.add_argument(
+        "--enroll-token",
+        default=os.environ.get("NAZORATCHI_ENROLL_TOKEN", ""),
+        help="bir martalik enroll token (doimiy token olinadi)",
+    )
+    parser.add_argument(
+        "--token-file",
+        default=os.environ.get("NAZORATCHI_TOKEN_FILE", ""),
+        help="doimiy tokenni saqlash/o'qish fayli (rejim 0600); enroll uchun tavsiya etiladi",
+    )
     parser.add_argument("--interval", type=float, default=15.0, help="soniya (standart 15)")
     parser.add_argument(
         "--count", type=int, default=0, help="shuncha davrdan keyin to'xtash (0 = cheksiz)"
@@ -124,10 +156,18 @@ def main(argv: list[str] | None = None) -> int:
         time.sleep(1.0)
         print(json.dumps({"facts": host_facts(), "samples": collector.collect()}, indent=2))
         return 0
-    if not args.token:
-        print("token kerak: --token yoki NAZORATCHI_TOKEN", file=sys.stderr)
+    try:
+        token = resolve_token(args)
+    except EnrollError as exc:
+        print(f"enroll muvaffaqiyatsiz: {exc}", file=sys.stderr)
+        return 1
+    if not token:
+        print(
+            "token kerak: --token, --token-file yoki --enroll-token (NAZORATCHI_*)",
+            file=sys.stderr,
+        )
         return 2
-    agent = Agent(Collector(), Sender(args.url, args.token))
+    agent = Agent(Collector(), Sender(args.url, token))
     try:
         run(agent, args.interval, args.count)
     except KeyboardInterrupt:

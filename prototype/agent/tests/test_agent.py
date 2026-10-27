@@ -1,17 +1,27 @@
+import argparse
 import gzip
 import json
 import math
+import os
 import re
 import threading
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from typing import Any
 
 import pytest
 
 from proto_agent.collectors import Collector, host_facts
-from proto_agent.main import BUFFER_MAX_AGE_S, Agent, run
-from proto_agent.sender import Batch, Sender, SendResult, build_payload
+from proto_agent.main import BUFFER_MAX_AGE_S, Agent, resolve_token, run
+from proto_agent.sender import (
+    Batch,
+    EnrollError,
+    Sender,
+    SendResult,
+    build_payload,
+    enroll,
+)
 
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,99}$")
 ALLOWED_LABELS = {"mount", "device", "fstype", "iface"}
@@ -68,7 +78,9 @@ class _Stub(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         raw = self.rfile.read(int(self.headers["Content-Length"]))
-        type(self).received.append(json.loads(gzip.decompress(raw)))
+        if self.headers.get("Content-Encoding") == "gzip":
+            raw = gzip.decompress(raw)
+        type(self).received.append(json.loads(raw))
         type(self).headers_seen.append(dict(self.headers.items()))
         status, headers, body = type(self).queued.pop(0)
         self.send_response(status)
@@ -234,3 +246,72 @@ def test_run_stops_after_count() -> None:
     sleeps: list[float] = []
     run(agent, interval=15, count=3, sleep=sleeps.append)
     assert len(sender.sent) == 3 and len(sleeps) == 2
+
+
+# ---------- enroll ----------
+def test_enroll_returns_permanent_token(stub: tuple[type[_Stub], str]) -> None:
+    handler, url = stub
+    handler.queued = [
+        (200, {}, b'{"host_id": "h-1", "agent_token": "agt_x", "interval_seconds": 15}')
+    ]
+    result = enroll(url, "enr_one", {"hostname": "vm1", "os": "Linux"})
+    assert (result.host_id, result.agent_token, result.interval_seconds) == ("h-1", "agt_x", 15)
+    assert handler.received[0]["enroll_token"] == "enr_one"
+    assert handler.received[0]["hostname"] == "vm1"
+    assert "Authorization" not in handler.headers_seen[0]
+
+
+@pytest.mark.parametrize(
+    ("status", "code"),
+    [(401, "invalid_enroll_token"), (409, "host_already_enrolled"), (410, "enroll_token_expired")],
+)
+def test_enroll_errors_carry_core_code(
+    stub: tuple[type[_Stub], str], status: int, code: str
+) -> None:
+    handler, url = stub
+    handler.queued = [(status, {}, json.dumps({"code": code, "message": "x"}).encode())]
+    with pytest.raises(EnrollError) as info:
+        enroll(url, "enr_bad", {})
+    assert (info.value.code, info.value.status) == (code, status)
+
+
+def test_enroll_network_and_malformed_response() -> None:
+    with pytest.raises(EnrollError, match="ulanib bo'lmadi"):
+        enroll("http://127.0.0.1:9", "enr", {}, timeout=1.0)
+
+
+def test_enroll_rejects_malformed_success(stub: tuple[type[_Stub], str]) -> None:
+    handler, url = stub
+    handler.queued = [(200, {}, b'{"host_id": "h-1"}')]
+    with pytest.raises(EnrollError, match="javob noto'g'ri"):
+        enroll(url, "enr", {})
+
+
+def _args(**kw: str) -> argparse.Namespace:
+    base = {"url": "http://x", "token": "", "token_file": "", "enroll_token": ""}
+    return argparse.Namespace(**{**base, **kw})
+
+
+def test_resolve_token_prefers_explicit_then_file(tmp_path: Path) -> None:
+    assert resolve_token(_args(token="agt_a")) == "agt_a"
+    saved = tmp_path / "token"
+    saved.write_text("agt_saved\n", encoding="utf-8")
+    assert resolve_token(_args(token_file=str(saved), enroll_token="enr_unused")) == "agt_saved"
+    assert resolve_token(_args()) is None
+
+
+def test_resolve_token_enrolls_once_and_persists_with_0600(
+    stub: tuple[type[_Stub], str], tmp_path: Path
+) -> None:
+    handler, url = stub
+    handler.queued = [
+        (200, {}, b'{"host_id": "h-1", "agent_token": "agt_new", "interval_seconds": 15}')
+    ]
+    path = tmp_path / "token"
+    args = _args(url=url, token_file=str(path), enroll_token="enr_one")
+    assert resolve_token(args) == "agt_new"
+    assert path.read_text(encoding="utf-8").strip() == "agt_new"
+    if os.name == "posix":
+        assert path.stat().st_mode & 0o777 == 0o600
+    assert resolve_token(args) == "agt_new"  # ikkinchi marta enroll qilinmaydi
+    assert len(handler.received) == 1

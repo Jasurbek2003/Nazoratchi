@@ -45,6 +45,57 @@ def build_payload(batch: Batch, now: datetime | None = None) -> dict[str, Any]:
     return payload
 
 
+@dataclass
+class Enrolled:
+    host_id: str
+    agent_token: str
+    interval_seconds: int
+
+
+class EnrollError(Exception):
+    """Enroll rad etildi yoki core'ga ulanib bo'lmadi. `code` — core xato kodi (TZ 7.5.1)."""
+
+    def __init__(self, code: str, status: int | None = None) -> None:
+        super().__init__(f"{code} (HTTP {status})" if status else code)
+        self.code = code
+        self.status = status
+
+
+def enroll(url: str, enroll_token: str, facts: dict[str, Any], timeout: float = 10.0) -> Enrolled:
+    """Bir martalik enroll token -> doimiy agent tokeni (TZ 7.5.1)."""
+    body = json.dumps(
+        {
+            "enroll_token": enroll_token,
+            "hostname": facts.get("hostname", ""),
+            "agent_version": VERSION,
+            "facts": facts,
+        }
+    ).encode()
+    request = urllib.request.Request(  # noqa: S310 (url operator sozlamasidan)
+        url.rstrip("/") + "/ingest/v1/enroll",
+        data=body,
+        method="POST",
+        headers={"Content-Type": "application/json", "X-Nazoratchi-Agent": VERSION},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+            data = json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        try:
+            code = json.loads(exc.read())["code"]
+        except (ValueError, KeyError, TypeError):
+            code = "http_error"
+        raise EnrollError(str(code), exc.code) from exc
+    except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as exc:
+        raise EnrollError(f"ulanib bo'lmadi: {exc}") from exc
+    try:
+        return Enrolled(
+            str(data["host_id"]), str(data["agent_token"]), int(data["interval_seconds"])
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise EnrollError("javob noto'g'ri") from exc
+
+
 class Sender:
     def __init__(self, url: str, token: str, timeout: float = 10.0) -> None:
         self.endpoint = url.rstrip("/") + "/ingest/v1/metrics"

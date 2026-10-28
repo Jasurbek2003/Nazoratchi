@@ -34,7 +34,7 @@ mustasno — u tiklash jarayonini qayd etadi, 10-bo'limga qarang).
 | FR-BKP-013 | **Offsite alerti.** Offsite oxirgi sinxronlash > 26 soat — yuqori; > 50 soat — kritik | M | F2 | Rsync to'xtatilsa alert |
 | FR-BKP-014 | **Offsite diskida joy.** Offsite serverning bo'sh joyi va zaxiralarning o'sishi; < 15% — ogohlantirish | S | F2 | Offsite agent diskni ko'rsatadi |
 | FR-BKP-015 | **Restore drill rejasi.** Har loyiha uchun tiklash testi davriyligi (standart: chorakda 1 marta); muddati yaqinlashsa eslatma | S | F2 | 90 kundan keyin eslatma chiqadi |
-| FR-BKP-016 | **Restore drill natijasini qayd etish.** Forma: sana, zaxira fayli, davomiyligi, tiklangan jadval/qator soni, natija (muvaffaqiyat/qisman/xato), izoh, bajargan shaxs | S | F2 | Natija saqlanadi va kartada ko'rinadi |
+| FR-BKP-016 | **Restore drill natijasini qayd etish.** Forma: sana, zaxira fayli, davomiyligi, tiklangan jadval/qator soni, natija (muvaffaqiyat/qisman/xato), izoh, bajargan shaxs | S | F1 | Natija saqlanadi va kartada ko'rinadi |
 | FR-BKP-017 | **Restore drill muddati o'tdi alerti.** 100 kun o'tib hali muvaffaqiyatli drill bo'lmasa — ogohlantirish | S | F2 | Muddati o'tgan loyiha ro'yxatda belgilanadi |
 | FR-BKP-018 | **Zaxira logini tahlil qilish.** `/var/log/appctl-backup.log` ning oxirgi bajarilishi: `XATO` qatorlari bo'lsa alert matnida oxirgi 10 qator ko'rsatiladi | S | F2 | Sun'iy `XATO` qatori alert matniga tushadi |
 | FR-BKP-019 | **Dump mazmuni tekshiruvi.** Dump boshi (`head`) PostgreSQL dump belgilarini o'z ichiga olishi; (ixtiyoriy) `pg_restore --list` jadvallar soni | C | F3 | Bo'sh/yaroqsiz dump aniqlanadi |

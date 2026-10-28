@@ -15,7 +15,8 @@ from apps.metrics.models import SeriesLatest
 from apps.registry.models import Project, ProjectServer
 
 from . import services
-from .models import BackupRun
+from .drills import DrillSerializer, drill_summary
+from .models import BackupRun, RestoreDrill
 
 RUNS_IN_CARD = 30  # 30 kunlik hajm grafigi
 
@@ -62,6 +63,20 @@ def _item(
     }  # fmt: skip
 
 
+def _drills_by_project(
+    ids: list[Any],
+) -> dict[Any, tuple[RestoreDrill | None, RestoreDrill | None]]:
+    """project_id -> (oxirgi drill, oxirgi muvaffaqiyatli drill)."""
+    slots: dict[Any, list[RestoreDrill | None]] = {pk: [None, None] for pk in ids}
+    rows = RestoreDrill.objects.filter(project_id__in=ids).select_related("project", "performed_by")
+    for d in rows.order_by("-performed_at"):
+        slot = slots[d.project_id]
+        slot[0] = slot[0] or d
+        if d.result == RestoreDrill.Result.SUCCESS and slot[1] is None:
+            slot[1] = d
+    return {pk: (v[0], v[1]) for pk, v in slots.items()}
+
+
 class BackupListView(APIView):
     """Faol, ko'chirilgan loyihalar zaxira holati: siyosati bor yoki agent ma'lumot yuborayotganlar."""
 
@@ -74,7 +89,7 @@ class BackupListView(APIView):
         links: dict[Any, list[ProjectServer]] = {}
         for link in ProjectServer.objects.select_related("server").order_by("server__name"):
             links.setdefault(link.project_id, []).append(link)
-        items = []
+        shown: list[tuple[Project, list[ProjectServer]]] = []
         for project in Project.objects.filter(status=Project.Status.ACTIVE, moved=True).order_by(
             "slug"
         ):
@@ -82,7 +97,13 @@ class BackupListView(APIView):
             has_data = any((link.server_id, project.slug) in data for link in plinks)
             if not (project.backup or has_data):
                 continue
-            items.append(_item(project, plinks, data, offsite, now))
+            shown.append((project, plinks))
+        drills = _drills_by_project([p.pk for p, _ in shown])
+        items = []
+        for project, plinks in shown:
+            item = _item(project, plinks, data, offsite, now)
+            item["drill"] = drill_summary(project, *drills[project.pk], now)
+            items.append(item)
         return Response({"items": items})
 
 
@@ -109,6 +130,12 @@ class BackupDetailView(APIView):
         item["runs"] = [
             {"finished_at": r.finished_at, "size_bytes": r.size_bytes} for r in reversed(runs)
         ]
+        last, last_ok = _drills_by_project([project.pk])[project.pk]
+        item["drill"] = drill_summary(project, last, last_ok, now)
+        history = RestoreDrill.objects.filter(project=project).select_related(
+            "project", "performed_by"
+        )
+        item["drills"] = DrillSerializer(history.order_by("-performed_at")[:20], many=True).data
         item["size_median_7"] = check.median if check else None
         item["size_ratio"] = round(check.ratio, 2) if check else None
         item["size_anomaly"] = bool(

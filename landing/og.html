@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="uz"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; background: #000; color: #fff; font-family: 'Geist', sans-serif; overflow: hidden; }
+  .wrap { width: 1200px; height: 630px; padding: 64px; display: flex; flex-direction: column; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 12px; font-size: 30px; font-weight: 600; }
+  .brand svg { width: 40px; height: 40px; }
+  h1 { font-size: 72px; line-height: 1.05; font-weight: 700; letter-spacing: -0.02em; max-width: 680px;
+       background: linear-gradient(to right, #FFFFFF, #9B9B9B); -webkit-background-clip: text; background-clip: text; color: transparent; padding-bottom: 8px; }
+  .row { display: flex; align-items: flex-end; justify-content: space-between; }
+  .sub { font-size: 24px; color: #9B9B9B; max-width: 520px; line-height: 32px; }
+  .panel { position: absolute; right: 64px; top: 150px; width: 380px; background: #181818; border: 1px solid #272727; border-radius: 16px; padding: 8px; }
+  .inner { background: #000; border: 1px solid #272727; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .banner { border: 1px solid #313131; background: #1F1F1F; border-radius: 8px; padding: 12px; color: #f0b429; font-weight: 600; font-size: 18px; }
+  .item { display: flex; align-items: center; justify-content: space-between; background: #181818; border: 1px solid #272727; border-radius: 8px; padding: 12px; font-family: 'Geist Mono', monospace; font-size: 16px; }
+  .item span:last-child { color: #9B9B9B; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 8px; margin-right: 8px; }
+</style></head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="9" fill="none" stroke="#3ccf7a" stroke-width="3"/><circle cx="16" cy="16" r="3" fill="#3ccf7a"/></svg>
+    Nazoratchi
+  </div>
+  <h1>Server o'chsa,<br>avval siz bilasiz,<br>mijozlaringiz emas</h1>
+  <div class="row"><p class="sub">Serverlar, zaxira nusxalar, sertifikat va domenlar bitta panelda. Muammo Telegramga keladi.</p></div>
+</div>
+<div class="panel"><div class="inner">
+  <div class="banner">▲ Diqqat: 2 ta muammo ochiq</div>
+  <div class="item"><span><i class="dot" style="background:#f0b429"></i>main 2</span><span>Disk 78%</span></div>
+  <div class="item"><span><i class="dot" style="background:#3ccf7a"></i>server 2</span><span>Disk 10%</span></div>
+  <div class="item"><span><i class="dot" style="background:#3ccf7a"></i>backup 1</span><span>Disk 31%</span></div>
+</div></div>
+</body></html>

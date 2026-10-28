@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="uz" class="scroll-smooth">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nazoratchi, server monitoringi</title>
+  <meta name="description" content="Nazoratchi serverlar, loyihalar, zaxira nusxalar, sertifikatlar va domenlar holatini bitta o'zbekcha panelda ko'rsatadi va muammoni Telegramga yuboradi.">
+  <meta name="theme-color" content="#000000">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Nazoratchi, server monitoringi">
+  <meta property="og:description" content="Server o'chsa, avval siz bilasiz. Telegram ogohlantirishlari, zaxira nazorati, sertifikat va domen muddatlari.">
+  <meta property="og:image" content="og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23000'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%233ccf7a' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%233ccf7a'/%3E%3C/svg%3E">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['Geist', 'system-ui', 'sans-serif'], mono: ['Geist Mono', 'monospace'] } } }
+    };
+  </script>
+  <style>
+    :root {
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --ok: #3ccf7a; --warning: #f0b429; --high: #ff8a50; --critical: #ff5c5c; --info: #5c9dff;
+    }
+    body { background: #000000; color: #ffffff; font-family: 'Geist', system-ui, sans-serif; }
+    i, em, cite { font-style: normal; }
+    h1, h2, h3 { text-wrap: balance; }
+    p, li, summary { text-wrap: pretty; }
+    :focus-visible { outline: 2px solid var(--info); outline-offset: 2px; border-radius: 8px; }
+
+    /* Scroll reveal: 32px rise, 700ms, base curve */
+    .reveal { opacity: 0; transform: translateY(32px); transition: opacity 700ms var(--ease), transform 700ms var(--ease); }
+    .reveal.in { opacity: 1; transform: none; }
+
+    /* Tagline words */
+    .tw { opacity: 0.3; transition: opacity 500ms var(--ease); }
+    .tw.on { opacity: 1; }
+
+    /* Menu toggle lines */
+    .bar { transition: transform 500ms var(--ease), opacity 300ms var(--ease); }
+    #menu-btn[aria-expanded="true"] .bar-1 { transform: translateY(6px) rotate(45deg); }
+    #menu-btn[aria-expanded="true"] .bar-2 { opacity: 0; }
+    #menu-btn[aria-expanded="true"] .bar-3 { transform: translateY(-6px) rotate(-45deg); }
+
+    /* Mobile panel */
+    #panel { opacity: 0; visibility: hidden; transition: opacity 500ms var(--ease), visibility 500ms; }
+    #panel.open { opacity: 1; visibility: visible; }
+    #panel a { opacity: 0; transform: translateY(24px); transition: opacity 500ms var(--ease), transform 500ms var(--ease); }
+    #panel.open a { opacity: 1; transform: none; transition-delay: calc(var(--i) * 60ms); }
+
+    /* FAQ */
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] .chev { transform: rotate(180deg); }
+    .chev { transition: transform 500ms var(--ease); }
+
+    .live-dot { animation: pulse 2s var(--ease) infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reveal, #panel a { transform: none !important; }
+      .bar-1, .bar-3 { transition: opacity 300ms linear; }
+      #menu-btn[aria-expanded="true"] .bar-1, #menu-btn[aria-expanded="true"] .bar-3 { transform: none; }
+      .live-dot { animation: none; }
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+    {"@type":"Question","name":"Nazoratchi bilan Uptime Kuma o'rtasida qanday farq bor?","acceptedAnswer":{"@type":"Answer","text":"Uptime Kuma sayt va port tekshiradi. Nazoratchi qo'shimcha ravishda CPU, RAM, disk, Docker, zaxira nusxalar, loyihalar reyestri, DNS va sertifikat muddatlarini bitta panelda birlashtiradi."}},
+    {"@type":"Question","name":"Serverda kiruvchi port ochish kerakmi?","acceptedAnswer":{"@type":"Answer","text":"Yo'q. Agent markazga HTTPS orqali o'zi ulanadi, kuzatiladigan serverda yangi kiruvchi port ochilmaydi."}},
+    {"@type":"Question","name":"Nazoratchi o'zi ishdan chiqsa nima bo'ladi?","acceptedAnswer":{"@type":"Answer","text":"Alohida serverda watchdog ishlaydi. Markaz javob bermasa, u Telegramga xabar yuboradi."}}
+  ]}
+  </script>
+</head>
+<body class="antialiased">
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-white focus:text-black focus:px-3 focus:py-2 focus:rounded-lg text-sm font-semibold">Asosiy kontentga o'tish</a>
+
+  <!-- NAV -->
+  <header class="fixed top-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-32px)] md:w-auto">
+    <nav aria-label="Asosiy" class="flex items-center justify-between gap-8 bg-[#181818]/70 backdrop-blur-xl border border-[#313131] rounded-2xl p-2">
+      <a href="#top" class="flex items-center gap-2 px-2 font-semibold text-base">
+        <i class="ph ph-pulse text-xl" style="color:var(--ok)" aria-hidden="true"></i> Nazoratchi
+      </a>
+      <ul class="hidden md:flex items-center gap-1 text-sm font-medium text-[#9B9B9B]">
+        <li><a data-nav href="#imkoniyatlar" class="block px-3 py-2 rounded-lg transition-colors duration-300 hover:text-white hover:bg-[#272727] aria-[current=true]:text-white aria-[current=true]:bg-[#272727]">Imkoniyatlar</a></li>
+        <li><a data-nav href="#qanday" class="block px-3 py-2 rounded-lg transition-colors duration-300 hover:text-white hover:bg-[#272727] aria-[current=true]:text-white aria-[current=true]:bg-[#272727]">Qanday ishlaydi</a></li>
+        <li><a data-nav href="#savollar" class="block px-3 py-2 rounded-lg transition-colors duration-300 hover:text-white hover:bg-[#272727] aria-[current=true]:text-white aria-[current=true]:bg-[#272727]">Savollar</a></li>
+      </ul>
+      <a href="#yozilish" class="hidden md:block bg-white text-black text-sm font-semibold px-3 py-2 rounded-lg transition-transform duration-300 hover:scale-105 active:scale-[0.98]">Yozilish</a>
+      <button id="menu-btn" class="md:hidden relative z-50 w-10 h-10 flex flex-col items-center justify-center gap-1 rounded-lg" aria-expanded="false" aria-controls="panel" aria-label="Menyuni ochish">
+        <span class="bar bar-1 block w-6 h-0.5 bg-white"></span>
+        <span class="bar bar-2 block w-6 h-0.5 bg-white"></span>
+        <span class="bar bar-3 block w-6 h-0.5 bg-white"></span>
+      </button>
+    </nav>
+  </header>
+
+  <div id="panel" class="fixed inset-0 z-30 bg-[#000000]/90 backdrop-blur-2xl md:hidden flex flex-col justify-center gap-6 p-8" aria-hidden="true">
+    <a style="--i:0" href="#imkoniyatlar" class="text-4xl font-semibold">Imkoniyatlar</a>
+    <a style="--i:1" href="#qanday" class="text-4xl font-semibold">Qanday ishlaydi</a>
+    <a style="--i:2" href="#savollar" class="text-4xl font-semibold">Savollar</a>
+    <a style="--i:3;color:var(--ok)" href="#yozilish" class="text-4xl font-semibold">Yozilish</a>
+  </div>
+
+  <main id="main">
+    <!-- HERO -->
+    <section id="top" class="px-4 pt-24 md:pt-24 pb-16">
+      <div class="max-w-5xl mx-auto flex flex-col items-center text-center pt-16">
+        <p class="inline-flex items-center gap-2 bg-[#181818] border border-[#313131] rounded-lg px-3 py-2 text-sm text-[#9B9B9B] mb-6">
+          <span class="live-dot w-2 h-2 rounded-lg" style="background:var(--warning)" aria-hidden="true"></span>
+          Ishlab chiqilmoqda, erta kirish ochiq
+        </p>
+        <h1 class="max-w-[680px] text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight pb-2" style="background:linear-gradient(to right,#FFFFFF,#9B9B9B);-webkit-background-clip:text;background-clip:text;color:transparent">
+          Server o'chsa,<br>avval siz bilasiz,<br>mijozlaringiz emas
+        </h1>
+        <p class="max-w-[680px] text-lg text-[#9B9B9B] mt-6">
+          Nazoratchi serverlar, loyihalar, zaxira nusxalar, sertifikatlar va domenlarni bitta o'zbekcha panelda ko'rsatadi. Muammo chiqsa, Telegramga xabar beradi.
+        </p>
+        <div class="mt-8 flex flex-col items-center gap-4">
+          <a href="#yozilish" class="inline-flex items-center gap-2 bg-white text-black text-base font-semibold px-3 py-2 rounded-lg transition-transform duration-300 hover:scale-105 active:scale-[0.98]">
+            Erta kirishga yozilish <i class="ph ph-arrow-right" aria-hidden="true"></i>
+          </a>
+          <p class="text-sm text-[#9B9B9B]">Loyiha maqsadi: server o'chishi 2 daqiqa ichida, sayt to'xtashi 90 soniyada aniqlanadi.</p>
+        </div>
+
+        <!-- Dashboard maketi -->
+        <div class="reveal w-full mt-16 bg-[#181818] border border-[#272727] rounded-2xl p-2 text-left" role="img" aria-label="Nazoratchi bosh sahifasining namunaviy ko'rinishi: ikki ochiq muammo, uch server, loyihalar ro'yxati">
+          <div class="bg-[#000000] border border-[#272727] rounded-lg p-4 md:p-6 flex flex-col gap-4">
+            <div class="flex items-center justify-between text-sm text-[#9B9B9B]">
+              <span class="font-semibold text-white">Bosh sahifa</span>
+              <span>yangilandi: 3 soniya oldin</span>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-3 border border-[#313131] bg-[#1F1F1F] rounded-lg p-3" >
+              <p class="flex items-center gap-2 text-base font-semibold" style="color:var(--warning)"><i class="ph-fill ph-warning" aria-hidden="true"></i> Diqqat: 2 ta muammo ochiq</p>
+              <span class="text-sm font-semibold bg-[#272727] rounded-lg px-3 py-2">Incidentlarga o'tish</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div class="bg-[#181818] border border-[#272727] rounded-lg p-3"><p class="text-[#9B9B9B]">Serverlar</p><p class="text-xl font-semibold mt-1">3 / 3 onlayn</p></div>
+              <div class="bg-[#181818] border border-[#272727] rounded-lg p-3"><p class="text-[#9B9B9B]">Loyihalar</p><p class="text-xl font-semibold mt-1">9 sog'lom</p></div>
+              <div class="bg-[#181818] border border-[#272727] rounded-lg p-3"><p class="text-[#9B9B9B]">Zaxira</p><p class="text-xl font-semibold mt-1">8 / 8 yangi</p></div>
+              <div class="bg-[#181818] border border-[#272727] rounded-lg p-3"><p class="text-[#9B9B9B]">Sertifikat</p><p class="text-xl font-semibold mt-1">41 kun</p></div>
+            </div>
+            <ul class="flex flex-col gap-2 text-sm">
+              <li class="flex items-center justify-between gap-3 bg-[#181818] border border-[#272727] rounded-lg p-3">
+                <span class="flex items-center gap-2" style="color:var(--warning)"><i class="ph-fill ph-warning" aria-hidden="true"></i><span class="text-white">Disk 7 kunda to'ladi, main 2 (/)</span></span>
+                <span class="text-[#9B9B9B] hidden sm:block">40 daqiqa oldin</span>
+              </li>
+              <li class="flex items-center justify-between gap-3 bg-[#181818] border border-[#272727] rounded-lg p-3">
+                <span class="flex items-center gap-2" style="color:var(--warning)"><i class="ph-fill ph-warning" aria-hidden="true"></i><span class="text-white">Offsite zaxira sozlanmagan</span></span>
+                <span class="text-[#9B9B9B] hidden sm:block">3 kun oldin</span>
+              </li>
+            </ul>
+            <div class="flex flex-col gap-2 text-sm font-mono" id="mock-servers"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RAQAMLAR -->
+    <section class="px-4 py-16" aria-label="Maqsad ko'rsatkichlari">
+      <dl class="reveal max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-[#181818] border border-[#272727] rounded-2xl p-6"><dt class="text-sm text-[#9B9B9B]">Server o'chganini bilish</dt><dd class="text-4xl font-semibold mt-2">2 daqiqa</dd></div>
+        <div class="bg-[#181818] border border-[#272727] rounded-2xl p-6"><dt class="text-sm text-[#9B9B9B]">Sayt to'xtashini bilish</dt><dd class="text-4xl font-semibold mt-2">90 soniya</dd></div>
+        <div class="bg-[#181818] border border-[#272727] rounded-2xl p-6"><dt class="text-sm text-[#9B9B9B]">Agent xotirasi, eng ko'pi</dt><dd class="text-4xl font-semibold mt-2">60 MB</dd></div>
+        <div class="bg-[#181818] border border-[#272727] rounded-2xl p-6"><dt class="text-sm text-[#9B9B9B]">Yangi server qo'shish</dt><dd class="text-4xl font-semibold mt-2">5 daqiqa</dd></div>
+      </dl>
+      <p class="max-w-5xl mx-auto mt-4 text-sm text-[#9B9B9B]">Bular loyiha maqsadlari. Birinchi versiya chiqqach, haqiqiy o'lchovlar bilan almashtiriladi.</p>
+    </section>
+
+    <!-- TAGLINE REVEAL -->
+    <section class="px-4 py-24" aria-label="Asosiy g'oya">
+      <p id="tagline" class="max-w-[680px] mx-auto text-4xl md:text-5xl font-semibold tracking-tight">
+        Monitoring shovqin bo'lmasligi kerak. Hammasi joyida bo'lsa, panel jim turadi. Muammo chiqsa, u birinchi bo'lib sizga aytadi.
+      </p>
+    </section>
+
+    <!-- MUAMMO VA YECHIM -->
+    <section class="px-4 py-24">
+      <div class="max-w-5xl mx-auto grid md:grid-cols-2 gap-8">
+        <div class="reveal bg-[#181818] border border-[#272727] rounded-2xl p-8">
+          <p class="text-sm font-semibold text-[#9B9B9B] flex items-center gap-2"><i class="ph ph-x-circle" style="color:var(--critical)" aria-hidden="true"></i> Hozirgi holat</p>
+          <h2 class="text-3xl font-semibold mt-4">Muammoni mijoz aytguncha bilmaysiz</h2>
+          <p class="text-base text-[#9B9B9B] mt-4">Server toza o'chib, qayta yonmay qolgan kuni hech kim xabar olmadi. Zaxira nusxalar ham aynan shu serverda turgan edi. Zaxira skripti natijasi esa faqat log faylga yoziladi va uni hech kim o'qimaydi.</p>
+        </div>
+        <div class="reveal bg-[#181818] border border-[#272727] rounded-2xl p-8">
+          <p class="text-sm font-semibold text-[#9B9B9B] flex items-center gap-2"><i class="ph ph-check-circle" style="color:var(--ok)" aria-hidden="true"></i> Nazoratchi bilan</p>
+          <h2 class="text-3xl font-semibold mt-4">Har bir signal bitta joyda va o'z vaqtida</h2>
+          <p class="text-base text-[#9B9B9B] mt-4">Agent har bir serverdan resurslar, Docker va zaxira holatini yig'adi. Markaz qoidalarni tekshiradi, Telegramga yuboradi. Markaz o'zi o'chsa, boshqa serverdagi watchdog xabar beradi.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- IMKONIYATLAR -->
+    <section id="imkoniyatlar" class="px-4 py-24">
+      <div class="max-w-5xl mx-auto">
+        <h2 class="reveal max-w-[680px] text-4xl font-semibold">Server ishlayotganini bilishdan ko'proq</h2>
+        <p class="reveal max-w-[680px] text-lg text-[#9B9B9B] mt-4">Hodisadan keyin ro'yxatga olingan sakkizta saboq, beshta aniq imkoniyatga aylandi.</p>
+        <div class="grid md:grid-cols-6 gap-4 mt-12">
+          <article class="reveal md:col-span-3 bg-[#181818] border border-[#272727] rounded-2xl p-6">
+            <i class="ph ph-eye text-3xl" style="color:var(--info)" aria-hidden="true"></i>
+            <h3 class="text-xl font-semibold mt-4">Besh soniyada javob</h3>
+            <p class="text-base text-[#9B9B9B] mt-2">Birinchi ekran raqamlar emas, xulosa: "Hammasi joyida" yoki "2 ta muammo". Sog'lom narsalar jim, muammolar tepada va bosiladigan.</p>
+          </article>
+          <article class="reveal md:col-span-3 bg-[#181818] border border-[#272727] rounded-2xl p-6">
+            <i class="ph ph-telegram-logo text-3xl" style="color:var(--info)" aria-hidden="true"></i>
+            <h3 class="text-xl font-semibold mt-4">Telegramda ogohlantirish</h3>
+            <p class="text-base text-[#9B9B9B] mt-2">Server o'chganda, sayt javob bermaganda, disk to'lishiga 7 kun qolganda xabar keladi. Bir sababdan kelgan o'nlab alert bitta incidentga birlashadi.</p>
+          </article>
+          <article class="reveal md:col-span-2 bg-[#181818] border border-[#272727] rounded-2xl p-6">
+            <i class="ph ph-database text-3xl" style="color:var(--ok)" aria-hidden="true"></i>
+            <h3 class="text-xl font-semibold mt-4">Zaxira nazorati</h3>
+            <p class="text-base text-[#9B9B9B] mt-2">Oxirgi muvaffaqiyatli zaxira 26 soatdan eski bo'lsa alert. Offsite nusxa va tiklash sinovi (restore drill) ham kuzatiladi.</p>
+          </article>
+          <article class="reveal md:col-span-2 bg-[#181818] border border-[#272727] rounded-2xl p-6">
+            <i class="ph ph-lock-key text-3xl" style="color:var(--high)" aria-hidden="true"></i>
+            <h3 class="text-xl font-semibold mt-4">Sertifikat va domen</h3>
+            <p class="text-base text-[#9B9B9B] mt-2">Muddat tugashidan 21, 7 va 3 kun oldin eslatma. DNS qayerga qarashi bir nechta resolver orqali tekshiriladi.</p>
+          </article>
+          <article class="reveal md:col-span-2 bg-[#181818] border border-[#272727] rounded-2xl p-6">
+            <i class="ph ph-stack text-3xl" style="color:var(--warning)" aria-hidden="true"></i>
+            <h3 class="text-xl font-semibold mt-4">Loyihalar reyestri</h3>
+            <p class="text-base text-[#9B9B9B] mt-2">Qaysi loyiha qaysi serverda, qaysi portda, qaysi domen va bazalar bilan ishlashi bitta jadvalda.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- QANDAY ISHLAYDI -->
+    <section id="qanday" class="px-4 py-24">
+      <div class="max-w-5xl mx-auto">
+        <h2 class="reveal max-w-[680px] text-4xl font-semibold">Uch qadamda ishga tushadi</h2>
+        <ol class="grid md:grid-cols-3 gap-4 mt-12">
+          <li class="reveal bg-[#181818] border border-[#272727] rounded-2xl p-6">
+            <span class="text-sm font-mono text-[#9B9B9B]">01</span>
+            <h3 class="text-xl font-semibold mt-2">Server qo'shing</h3>
+            <p class="text-base text-[#9B9B9B] mt-2">Panelda nom kiriting. Nazoratchi sizga bitta o'rnatish buyrug'ini beradi.</p>
+          </li>
+          <li class="reveal bg-[#181818] border border-[#272727] rounded-2xl p-6">
+            <span class="text-sm font-mono text-[#9B9B9B]">02</span>
+            <h3 class="text-xl font-semibold mt-2">Agent ulanadi</h3>
+            <p class="text-base text-[#9B9B9B] mt-2">Buyruqni serverda ishga tushiring. Agent markazga HTTPS orqali o'zi ulanadi, kiruvchi port ochilmaydi.</p>
+          </li>
+          <li class="reveal bg-[#181818] border border-[#272727] rounded-2xl p-6">
+            <span class="text-sm font-mono text-[#9B9B9B]">03</span>
+            <h3 class="text-xl font-semibold mt-2">Telegramni ulang</h3>
+            <p class="text-base text-[#9B9B9B] mt-2">Tayyor qoidalar yoqilgan holda keladi. Birinchi ma'lumot paydo bo'lishi bilan panel serverni ko'rsatadi.</p>
+          </li>
+        </ol>
+        <div class="reveal mt-4 bg-[#181818] border border-[#272727] rounded-2xl p-2">
+          <div class="bg-[#000000] border border-[#272727] rounded-lg p-4 flex items-center justify-between gap-4">
+            <code id="cmd" class="font-mono text-sm text-[#9B9B9B] overflow-x-auto whitespace-nowrap">curl -fsSL https://markaz.example/install.sh | sudo sh -s -- --token TOKEN</code>
+            <button id="copy" type="button" class="shrink-0 flex items-center gap-2 bg-[#272727] text-sm font-semibold px-3 py-2 rounded-lg transition-colors duration-300 hover:bg-[#313131] active:scale-[0.98]">
+              <i class="ph ph-copy" aria-hidden="true"></i><span id="copy-label">Nusxalash</span>
+            </button>
+          </div>
+        </div>
+        <p class="text-sm text-[#9B9B9B] mt-2">Namuna buyruq. Haqiqiy manzil va token panelda ko'rsatiladi.</p>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="savollar" class="px-4 py-24">
+      <div class="max-w-[680px] mx-auto">
+        <h2 class="reveal text-4xl font-semibold">Ko'p beriladigan savollar</h2>
+        <div class="reveal mt-12 flex flex-col gap-2">
+          <details class="bg-[#181818] border border-[#272727] rounded-2xl p-4">
+            <summary class="flex items-center justify-between gap-4 text-base font-semibold">Uptime Kuma bor-ku, nima uchun Nazoratchi? <i class="ph ph-caret-down chev" aria-hidden="true"></i></summary>
+            <p class="text-base text-[#9B9B9B] mt-2">Uptime Kuma sayt va portni tekshiradi, bu yaxshi boshlanish. Nazoratchi ustiga CPU, RAM, disk, Docker, zaxira nusxalar, loyihalar reyestri, DNS va sertifikat muddatlarini bitta o'zbekcha panelda birlashtiradi.</p>
+          </details>
+          <details class="bg-[#181818] border border-[#272727] rounded-2xl p-4">
+            <summary class="flex items-center justify-between gap-4 text-base font-semibold">Serverda port ochish kerakmi? <i class="ph ph-caret-down chev" aria-hidden="true"></i></summary>
+            <p class="text-base text-[#9B9B9B] mt-2">Yo'q. Agent faqat tashqariga, markazga HTTPS orqali ulanadi. Kuzatiladigan serverda yangi kiruvchi port ochilmaydi.</p>
+          </details>
+          <details class="bg-[#181818] border border-[#272727] rounded-2xl p-4">
+            <summary class="flex items-center justify-between gap-4 text-base font-semibold">Agent serverimga yuk tushiradimi? <i class="ph ph-caret-down chev" aria-hidden="true"></i></summary>
+            <p class="text-base text-[#9B9B9B] mt-2">Maqsad: bir foizdan kam CPU va 60 MB gacha xotira. O'rnatish ishlayotgan loyihalarni to'xtatmasligi kerak.</p>
+          </details>
+          <details class="bg-[#181818] border border-[#272727] rounded-2xl p-4">
+            <summary class="flex items-center justify-between gap-4 text-base font-semibold">Nazoratchi serverimda biror narsani o'zgartiradimi? <i class="ph ph-caret-down chev" aria-hidden="true"></i></summary>
+            <p class="text-base text-[#9B9B9B] mt-2">Yo'q. Nazoratchi kuzatadi, boshqarmaydi. SSH terminal ham, fayl menejer ham yo'q. Zaxirani ham o'zi olmaydi, faqat mavjudligini va yangiligini tekshiradi.</p>
+          </details>
+          <details class="bg-[#181818] border border-[#272727] rounded-2xl p-4">
+            <summary class="flex items-center justify-between gap-4 text-base font-semibold">Nazoratchi o'zi ishdan chiqsa-chi? <i class="ph ph-caret-down chev" aria-hidden="true"></i></summary>
+            <p class="text-base text-[#9B9B9B] mt-2">Alohida serverda kichik watchdog ishlaydi. Markaz javob bermasa, u Telegramga xabar yuboradi. Markaz va watchdog bir birini kuzatadi.</p>
+          </details>
+          <details class="bg-[#181818] border border-[#272727] rounded-2xl p-4">
+            <summary class="flex items-center justify-between gap-4 text-base font-semibold">Qaysi tizimlar qo'llab quvvatlanadi? <i class="ph ph-caret-down chev" aria-hidden="true"></i></summary>
+            <p class="text-base text-[#9B9B9B] mt-2">Ubuntu 22.04 va 24.04, systemd va Docker bilan. Windows, macOS va Kubernetes birinchi versiyaga kirmaydi.</p>
+          </details>
+          <details class="bg-[#181818] border border-[#272727] rounded-2xl p-4">
+            <summary class="flex items-center justify-between gap-4 text-base font-semibold">Parol va tokenlar xavfsizmi? <i class="ph ph-caret-down chev" aria-hidden="true"></i></summary>
+            <p class="text-base text-[#9B9B9B] mt-2">Maxfiy ma'lumot metrikalarga ham, loglarga ham tushmasligi talab qilingan. Panelga kirish ikki bosqichli tasdiqlash va rollar (egasi, operator, kuzatuvchi) bilan himoyalanadi.</p>
+          </details>
+          <details class="bg-[#181818] border border-[#272727] rounded-2xl p-4">
+            <summary class="flex items-center justify-between gap-4 text-base font-semibold">Narxi qancha va qaysi tillarda? <i class="ph ph-caret-down chev" aria-hidden="true"></i></summary>
+            <p class="text-base text-[#9B9B9B] mt-2">Tizim ochiq manbali komponentlarda quriladi. Narx hali e'lon qilinmagan, erta kirish ro'yxatidagilar birinchi bo'lib bilishadi. Panel o'zbek (lotin), rus va ingliz tillarida bo'ladi.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- YOZILISH -->
+    <section id="yozilish" class="px-4 py-24">
+      <div class="reveal max-w-5xl mx-auto bg-[#181818] border border-[#272727] rounded-2xl p-8 md:p-16 text-center flex flex-col items-center">
+        <h2 class="max-w-[680px] text-4xl md:text-5xl font-semibold">Keyingi hodisa uchun tayyor bo'ling</h2>
+        <p class="max-w-[680px] text-lg text-[#9B9B9B] mt-4">Birinchi versiya tayyor bo'lganda sizga yozamiz. Spam yo'q, bekor qilish bir bosishda.</p>
+        <form id="signup" class="w-full max-w-[480px] mt-8 flex flex-col gap-2 text-left" novalidate>
+          <label for="email" class="text-sm font-medium">Elektron pochta</label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="siz@kompaniya.uz" required
+              aria-describedby="form-msg"
+              class="flex-1 bg-[#000000] border border-[#313131] rounded-lg px-3 py-2 text-base placeholder:text-[#9B9B9B] transition-colors duration-300 focus:border-white">
+            <button id="submit" type="submit" class="bg-white text-black text-base font-semibold px-3 py-2 rounded-lg transition-transform duration-300 hover:scale-105 active:scale-[0.98] disabled:opacity-60">Yozilish</button>
+          </div>
+          <p id="form-msg" class="text-sm min-h-6" role="status" aria-live="polite"></p>
+        </form>
+        <ul class="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-[#9B9B9B]">
+          <li class="flex items-center gap-2"><i class="ph ph-check" style="color:var(--ok)" aria-hidden="true"></i> Kredit karta so'ralmaydi</li>
+          <li class="flex items-center gap-2"><i class="ph ph-check" style="color:var(--ok)" aria-hidden="true"></i> Serveringizda hech narsa o'zgarmaydi</li>
+          <li class="flex items-center gap-2"><i class="ph ph-check" style="color:var(--ok)" aria-hidden="true"></i> Istalgan vaqt bekor qilasiz</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="px-4 py-12 border-t border-[#272727]">
+    <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between gap-6 text-sm text-[#9B9B9B]">
+      <p class="flex items-center gap-2 text-white font-semibold"><i class="ph ph-pulse" style="color:var(--ok)" aria-hidden="true"></i> Nazoratchi</p>
+      <ul class="flex flex-wrap gap-6">
+        <li><a class="transition-colors duration-300 hover:text-white" href="huquqiy.html#maxfiylik">Maxfiylik siyosati</a></li>
+        <li><a class="transition-colors duration-300 hover:text-white" href="huquqiy.html#shartlar">Foydalanish shartlari</a></li>
+        <li><a class="transition-colors duration-300 hover:text-white" href="#top">Tepaga qaytish</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // Dashboard maketidagi serverlar
+      var servers = [
+        { name: 'main 2', ok: false, cpu: 12, ram: 42, disk: 78, up: '4 kun', s: [3,5,4,6,5,7,5,6,5,4] },
+        { name: 'server 2', ok: true, cpu: 6, ram: 55, disk: 10, up: '41 kun', s: [2,2,3,2,2,3,2,2,3,2] },
+        { name: 'backup 1', ok: true, cpu: 1, ram: 18, disk: 31, up: '12 kun', s: [1,1,1,2,1,1,1,1,2,1] }
+      ];
+      function spark(a) {
+        var w = 60, h = 16, max = 10;
+        var pts = a.map(function (v, i) { return (i * w / (a.length - 1)).toFixed(1) + ',' + (h - v / max * h).toFixed(1); }).join(' ');
+        return '<svg width="60" height="16" viewBox="0 0 60 16" aria-hidden="true" class="shrink-0"><polyline points="' + pts + '" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+      }
+      var box = document.getElementById('mock-servers');
+      box.innerHTML = servers.map(function (s) {
+        var tone = s.ok ? 'var(--ok)' : 'var(--warning)';
+        var icon = s.ok ? 'ph-check-circle' : 'ph-warning';
+        var label = s.ok ? 'Joyida' : 'Diqqat';
+        return '<div class="flex items-center justify-between gap-3 bg-[#181818] border border-[#272727] rounded-lg p-3">' +
+          '<span class="flex items-center gap-2 min-w-0"><i class="ph-fill ' + icon + '" style="color:' + tone + '" aria-hidden="true"></i><span class="text-white truncate">' + s.name + '</span><span class="sr-only">' + label + '</span></span>' +
+          '<span class="flex items-center gap-4 text-[#9B9B9B]">' +
+          '<span class="hidden sm:flex items-center gap-2">CPU ' + s.cpu + '% ' + spark(s.s) + '</span>' +
+          '<span>RAM ' + s.ram + '%</span><span>Disk ' + s.disk + '%</span><span class="hidden md:block">' + s.up + '</span></span></div>';
+      }).join('');
+
+      // Scroll reveal, bir marta
+      var io = new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+      }, { threshold: 0.15 });
+      document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+
+      // Tagline: so'zma so'z
+      var tg = document.getElementById('tagline');
+      var words = tg.textContent.trim().split(/\s+/);
+      tg.setAttribute('aria-label', words.join(' '));
+      tg.innerHTML = words.map(function (w) { return '<span class="tw" aria-hidden="true">' + w + '</span>'; }).join(' ');
+      var wio = new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('on'); wio.unobserve(e.target); } });
+      }, { rootMargin: '0px 0px -35% 0px' });
+      tg.querySelectorAll('.tw').forEach(function (el) { wio.observe(el); });
+
+      // Mobil menyu
+      var btn = document.getElementById('menu-btn'), panel = document.getElementById('panel');
+      function setMenu(open) {
+        btn.setAttribute('aria-expanded', String(open));
+        btn.setAttribute('aria-label', open ? 'Menyuni yopish' : 'Menyuni ochish');
+        panel.classList.toggle('open', open);
+        panel.setAttribute('aria-hidden', String(!open));
+        document.body.style.overflow = open ? 'hidden' : '';
+      }
+      btn.addEventListener('click', function () { setMenu(btn.getAttribute('aria-expanded') !== 'true'); });
+      panel.querySelectorAll('a').forEach(function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setMenu(false); });
+
+      // Joriy bo'lim belgisi
+      var links = document.querySelectorAll('[data-nav]');
+      var sio = new IntersectionObserver(function (es) {
+        es.forEach(function (e) {
+          if (e.isIntersecting) links.forEach(function (l) { l.setAttribute('aria-current', String(l.getAttribute('href') === '#' + e.target.id)); });
+        });
+      }, { rootMargin: '-40% 0px -55% 0px' });
+      ['top', 'imkoniyatlar', 'qanday', 'savollar', 'yozilish'].forEach(function (id) { sio.observe(document.getElementById(id)); });
+
+      // Buyruqni nusxalash
+      var copy = document.getElementById('copy'), label = document.getElementById('copy-label');
+      copy.addEventListener('click', function () {
+        var txt = document.getElementById('cmd').textContent;
+        (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () {
+          label.textContent = 'Nusxalandi';
+        }, function () { label.textContent = 'Nusxalab bo‘lmadi'; });
+        setTimeout(function () { label.textContent = 'Nusxalash'; }, 2000);
+      });
+
+      // Forma
+      var ENDPOINT = ''; // Ro'yxatga olish API manzili. Bo'sh bo'lsa yuborish xato beradi.
+      var form = document.getElementById('signup'), email = document.getElementById('email'),
+          msg = document.getElementById('form-msg'), submit = document.getElementById('submit');
+      function say(t, color) { msg.textContent = t; msg.style.color = color; }
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var v = email.value.trim();
+        if (!v) { say('Elektron pochtani kiriting. Misol: siz@kompaniya.uz', 'var(--critical)'); email.focus(); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) { say('Elektron pochta noto‘g‘ri kiritilgan. Misol: siz@kompaniya.uz', 'var(--critical)'); email.focus(); return; }
+        if (!ENDPOINT) { say('Yuborib bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.', 'var(--critical)'); return; }
+        submit.disabled = true; say('Yuborilmoqda', '#9B9B9B');
+        fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: v }) })
+          .then(function (r) { if (!r.ok) throw 0; say('Qabul qilindi. Birinchi versiya tayyor bo‘lganda yozamiz.', 'var(--ok)'); form.reset(); })
+          .catch(function () { say('Yuborib bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.', 'var(--critical)'); })
+          .finally(function () { submit.disabled = false; });
+      });
+    })();
+  </script>
+</body>
+</html>

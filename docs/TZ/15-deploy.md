@@ -199,6 +199,8 @@ volumes:
   nazoratchi_beat:
 ```
 
+> **S9 da amalga oshirilgan:** `deploy/docker-compose.yml`. Celery (`worker`/`beat`) yo'q: kodda ishlatilmaydi. Qo'shimcha servis `self-backup` (`manage.py self_backup --loop --hour 3`). `web` agent fayllari uchun `AGENT_DIST_HOST_DIR` ni `/data/agent` ga o'qish rejimida ulaydi. Backend image repo ildizidan quriladi (`docker build -f backend/Dockerfile .`): `install.sh` va `seed/` image ichida. Frontend image `nginxinc/nginx-unprivileged` (konteyner porti 8080, host `127.0.0.1:3040`).
+
 Eslatmalar:
 - Portlar faqat `127.0.0.1` ga (Docker nashri `ufw` ni chetlab o'tadi).
 - `evaluator` va `prober` **bitta nusxada** ishlaydi (`replicas` yo'q). Ikkinchi nusxa
@@ -279,14 +281,6 @@ server {
         proxy_pass http://127.0.0.1:8040;
         include /etc/nginx/proxy_params;
     }
-    location /api/v1/stream {                      # SSE: buferlashsiz
-        proxy_pass http://127.0.0.1:8040;
-        include /etc/nginx/proxy_params;
-        proxy_http_version 1.1;
-        proxy_set_header Connection "";
-        proxy_buffering off;
-        proxy_read_timeout 1h;
-    }
     location /api/ {
         limit_req zone=nzr_api burst=40 nodelay;
         proxy_pass http://127.0.0.1:8040;
@@ -296,7 +290,7 @@ server {
         proxy_pass http://127.0.0.1:8040;
         include /etc/nginx/proxy_params;
     }
-    location /metrics { allow 127.0.0.1; deny all; proxy_pass http://127.0.0.1:8040; }
+    location ~ ^/(metrics|readyz) { return 404; }   # ichki endpointlar tashqariga berilmaydi
 
     location / {                                   # SPA
         proxy_pass http://127.0.0.1:3040;
@@ -328,6 +322,8 @@ Eslatma: `limit_req` kaliti `$http_authorization` — agent tokeni bo'yicha cheg
 10. Birinchi agent (S-00, core'ning o'zi va offsite papka; keyin S-02) — UC-01; panelda "Onlayn" ni tekshirish.
 11. `appctl` ga Nazoratchi `.appctl` yozish va `appctl backup Nazoratchi`.
 
+> **S9:** 3-5-qadamlar `deploy/bootstrap.sh <login>` bilan bajariladi (idempotent). Reyestr seed buyrug'i `manage.py seed_registry --file seed/inventory.yaml [--dry-run]`.
+
 ## 15.8. Agentlarni mavjud serverlarga tarqatish
 
 Tartib — kamroq xavfdan ko'proqqa:
@@ -354,6 +350,8 @@ S-02 uchun ehtiyot choralari:
 ## 15.9. Nazoratchi'ni tiklash (yangi serverda) — RB-044
 
 Maqsad: RTO ≤ 1 soat (NFR-REL-006).
+
+> **S9:** haqiqiy buyruqlar `docs/runbooks/RB-044.md` da (`manage.py restore_self_backup <fayl> --identity <kalit> --yes`).
 
 1. Yangi server (15.2) — 20 daqiqa.
 2. `docker` va `appctl` tayyor; `Nazoratchi` papkasini yaratish; eng yangi zaxirani Owner'ning Telegram
@@ -382,6 +380,8 @@ Maqsad: RTO ≤ 1 soat (NFR-REL-006).
 | `sign` | Reliz tegida (`v*`) | Agent binarlarini `minisign` bilan imzolash (maxfiy kalit CI sirida) | Reliz to'xtaydi |
 | `release` | Reliz tegida | GitHub Release, image'larni `ghcr.io` ga, agent artefaktlarini core'ga yuklash uchun paket | — |
 | `deploy-prod` | Qo'lda (`workflow_dispatch`) yoki reliz tasdiqlangach | `ssh` orqali: `appctl deploy Nazoratchi` (15.11) | Avtomatik rollback (15.11.3) |
+
+> **S9:** `release.yml` (teg `v*`): backend/frontend image'lari ghcr.io ga (SBOM, provenance), agent amd64/arm64 binarlari, `SHA256SUMS` va `SHA256SUMS.minisig` (sirlar `MINISIGN_SECRET_KEY`, `MINISIGN_PASSWORD`), GitHub Release. CI ga shellcheck, nginx `-t`, prod compose, frontend image va `install.sh` funksional testi qo'shildi.
 
 ### 15.10.2. Namuna workflow qismi (test-backend)
 

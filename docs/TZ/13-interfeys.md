@@ -370,6 +370,8 @@ Boshlanishi: 09:33 · Davomiyligi: 12 daqiqa (davom etmoqda) · Ahamiyat: critic
 
 ## 13.9. Mobil moslashuv (NFR-USA-002)
 
+> **S9:** mobil pastki panel 5 ustun: Bosh sahifa, Serverlar, Loyihalar, Incidentlar va "Yana" menyusi (Zaxiralar, Domenlar, Texnik ish, Sozlamalar); 8 bo'lim 360 px da 3 ustunga sig'maydi.
+
 | Element | Desktop | Mobil (< 768 px) |
 |---|---|---|
 | Navigatsiya | Chap panel | Pastki panel (5 band) |

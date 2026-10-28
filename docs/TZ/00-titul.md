@@ -6,7 +6,7 @@
 |---|---|
 | **Hujjat turi** | Texnik topshiriq (Technical Specification) |
 | **Loyiha ishchi nomi** | Nazoratchi (Nazoratchi Monitor) |
-| **Versiya** | 1.11 (loyiha) |
+| **Versiya** | 1.13 (loyiha) |
 | **Sana** | 2026-10-26 |
 | **Holat** | Tasdiqlash uchun taqdim etilgan |
 | **Buyurtmachi / mahsulot egasi** | Jasurbek (Avlo loyihalari egasi) |
@@ -33,6 +33,8 @@
 | 1.9 | 2026-10-27 | Claude | F1 S3: alert dvigateli amalga oshirildi (16 standart qoida). Aniqlashtirishlar: `state` manbalari va "ma'lumot yo'q" (12.3.5), `of` kaliti (12.3.6), ahamiyat bo'yicha bostirish va S3 da bo'lmagan qismlar (12.5), incident boshlanishi = shart rost bo'la boshlagan vaqt (6.7.2), `pending` uzluksizligi (6.7.1), qo'shimcha ustunlar (8.7), `evaluator`/`notifier` komandalari va healthcheck (15.4) |
 | 1.10 | 2026-10-27 | Claude | F1 S4: reyestr CRUD (serverlar, loyihalar, domenlar), seed, prober (HTTP/TCP), Telegram tugmalari. Aniqlashtirishlar: pauza `until`/sabab (8.3, 9.3), port to'qnashuvi va keyingi bo'sh port qoidasi (9.4), probe `DELETE` = arxiv va `allow_private` faqat Owner (9.6), webhook sirlari va `callback_data` formati (9.12), prober amalga oshirilishi: IP-pinning, qayta tekshiruv `next_run_at` orqali (6.8), `primary` kaliti (18.4), AL-049/049H/085 va `probe`/`prober` manbalari (12.3.5, 12.7), `prober`, `TELEGRAM_WEBHOOK_SECRET`, seed (15.4, 15.5) |
 | 1.11 | 2026-10-27 | Claude | F1 S5: TLS va DNS tekshiruvlari, sertifikat/DNS/konteyner qoidalari (AL-035, 036, 057-060, 062, 063), Go agent `docker` kollektori, metrikalar so'rovi API (B4). Aniqlashtirishlar: kutilgan konteyner agent xotirasida (7.4.4, 11.5.1), TLS/DNS amalga oshirilishi (6.8), `cert_status`/`dns_results`/`dns_changes`/`settings` (8.5), so'rov API qoidalari va `null` bo'shliqlar (9.5), `/certs/`, `/domains/{id}/dns`, konteyner va fayl tizimi endpointlari (9.3, 9.4, 9.6), `when` sharti va `cert`/`dns` manbalari (12.3), WHOIS/RDAP F2 ga qoldi |
+| 1.12 | 2026-10-27 | Claude | F1 S6: zaxira monitoringi (B10) va agent `systemd`/`backup` kollektorlari (B5c). Aniqlashtirishlar: `systemd`/`backup`/`beat` amalga oshirilishi (7.4.5, 7.4.6), `projects.backup` siyosati va `backup_runs` agent metrikalaridan hosil bo'lishi (8.3, 8.6), `/backups/` API shakli (9.7), `backup` state manbasi va AL-068…072, 075 (12.3.5, 12.7.10) |
+| 1.13 | 2026-10-28 | Claude | F1 S7/S8: o'zini kuzatish (B11), mustaqil watchdog (S-01), o'z zaxirasi, agent `install.sh`/`uninstall`, frontend asosi (S8). Aniqlashtirishlar: `/healthz` (liveness), `/readyz` (tayyorlik), `/metrics` (ichki) va `WATCHDOG_URL` ping oqimi (9.15), AL-084 watchdog orqali amalga oshirilishi, AL-090/091 o'z zaxirasi qoidalari (12.7), `NAZORATCHI_BACKUP_AGE_PUBKEY`, `METRICS_TOKEN`, `MINISIGN_PUBKEY`, `AGENT_DIST_DIR` (15.5), `install.sh` imzo fayli `SHA256SUMS.minisig` (7.7.1), `GET /agent/v1/<fayl>` (9.14), `warning` rangi `#c28400` (13.x, WCAG 3:1) |
 
 Hujjatga o'zgartirish kiritish tartibi: har bir o'zgarish yangi qator sifatida shu jadvalga
 yoziladi; talab identifikatorlari (FR-..., NFR-...) hech qachon qayta ishlatilmaydi,

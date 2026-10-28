@@ -97,7 +97,7 @@ qiymatlar. Mavzu: tizim sozlamasi (`prefers-color-scheme`) + qo'lda almashtirish
 ```css
 :root {
   --bg: #f7f8fa;      --surface: #ffffff;   --text: #1b1f24;   --muted: #5c6670;  --border: #dde1e6;
-  --ok: #1f9d55;      --warning: #c98a00;   --high: #d9622b;   --critical: #cf2e2e;
+  --ok: #1f9d55;      --warning: #c28400;   --high: #d9622b;   --critical: #cf2e2e;
   --unknown: #7a828c; --info: #2b6fd6;
   --ok-bg: #e7f6ed;   --warning-bg: #fdf3d9; --high-bg: #fde9df; --critical-bg: #fbe5e5;
 }

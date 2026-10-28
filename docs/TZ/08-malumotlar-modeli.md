@@ -377,6 +377,10 @@ CREATE TABLE domain_whois (
 ## 8.6. Zaxira nusxalar
 
 ```sql
+-- S6: loyiha zaxira siyosati `projects.backup jsonb` ({expect_daily, expect_weekly_files, require_offsite, db}; seed `backup:` dan).
+-- `backup_runs` agent yuborgan state.json dan emas, `backup_*` METRIKALARIDAN hosil bo'ladi: har safar `backup_last_success_timestamp` yangilansa evaluator
+-- bitta qator yozadi (faqat kind='daily', server_id, project_slug, finished_at, size_bytes; UNIQUE shu to'rtlikda). Qolgan ustunlar (status, error, offsite_*) —
+-- F2 (restore drill bilan birga). Hajm anomaliyasi (AL-071/072) va 30 kunlik grafik shu tarixdan.
 CREATE TABLE backup_runs (            -- appctl state.json dan (agent yuboradi)
   id            bigserial PRIMARY KEY,
   server_id     uuid NOT NULL REFERENCES servers(id),

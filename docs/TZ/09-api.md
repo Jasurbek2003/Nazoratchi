@@ -259,6 +259,9 @@ Qoidalar (S4): hozircha `http` va `tcp` turlari (qolganlari `400`). `DELETE` tek
 | PATCH | `/backups/drills/{id}` | owner, operator | Tuzatish |
 | GET/PUT | `/backups/policy` | owner | Har loyiha uchun siyosat: kutilgan yosh (26 s), hajm chegarasi, drill davriyligi (90 kun) |
 
+> **S6 da amalga oshirilgan (soddalashtirilgan yo'llar):** `GET /backups/` (jadval) va `GET /backups/{slug}` (karta). Yuqoridagi `/backups/overview`, `/projects/{id}`, `/runs`, `/offsite`, `/drills`, `/policy` — F2. Siyosat hozircha `PATCH /projects/{id}` dagi `backup` maydoni orqali.
+> `GET /backups/` elementi: `project, project_id, name, server, server_id, expect_daily, expect_weekly_files, require_offsite, state, age_hours, last_success_at, last_size_bytes, last_status (ok|fail|null), daily_count, weekly_count, files_count, newest_age_seconds{kind}, offsite_configured (server darajasida), data_seen_at`. `state`: `ok`, `late` (> 26 s), `critical` (> 50 s), `failed` (oxirgi zaxira xato), `stale` (agent 15 daqiqadan beri jim: ma'lumot ishonchsiz), `missing` (kutilgan, lekin hech qachon olinmagan, loyiha ≥ 26 soatlik), `unknown` (yangi loyiha), `none` (zaxira kutilmaydi). Ro'yxatga faqat faol, ko'chirilgan va siyosati bor yoki agent ma'lumot yuborayotgan loyihalar kiradi. Karta qo'shimcha: `runs[]` (oxirgi 30, eskidan yangiga: `finished_at, size_bytes`), `size_median_7`, `size_ratio`, `size_anomaly`.
+
 Namuna — `GET /backups/overview` javobi:
 
 ```json
@@ -449,10 +452,12 @@ bo'linmaydi) va faqat `curl` yiqilganda ham noto'g'ri `fail` yuboradi, shuning u
 
 | Metod | Yo'l | Kirish | Javob |
 |---|---|---|---|
-| GET | `/healthz` | ichki/tashqi watchdog | `200 {"status":"ok"}` yoki `503` (baza/navbat) |
-| GET | `/readyz` | ichki | Tayyorlik (migratsiyalar tugagan) |
-| GET | `/metrics` | token/ichki | Prometheus matni (NFR-OBS-001) |
+| GET | `/healthz` | ichki/tashqi watchdog | Liveness: `200 {"status":"ok"}` yoki `503` (baza/navbat) |
+| GET | `/readyz` | ichki | Tayyorlik: baza, Redis, notifier va evaluator yurak urishi (tsikl yangi) tekshiriladi; biri yiqilsa `503` |
+| GET | `/metrics` | `METRICS_TOKEN` yoki faqat loopback | Prometheus matni (NFR-OBS-001); nginx tashqariga bermaydi |
 | GET | `/api/v1/version` | hamma | `{"version":"1.0.0","build":"...","agent_latest":"1.0.0"}` |
+
+> **S7 da amalga oshirilgan:** evaluator har tsikl muvaffaqiyatli tugagach (kamida 60 s oralig'ida) `WATCHDOG_URL` (`https://<host>/ping/<id>`) ga ping yuboradi; tsikl yiqilsa ping to'xtaydi va watchdog 5 daqiqada xabar beradi (AL-084). `WATCHDOG_URL` `https://` bo'lishi shart (maxfiy id ochiq ketmasligi uchun; loopback `http` mumkin). Tarqatish: `GET /install.sh` (`__CORE_URL__`, `__MINISIGN_PUBKEY__` almashtiriladi; kalit yo'q bo'lsa `503`), `GET /agent/v1/<nazoratchi-agent-amd64|arm64|SHA256SUMS|SHA256SUMS.minisig>` (oq ro'yxat).
 
 ## 9.16. Moslik va o'zgarishlar siyosati
 

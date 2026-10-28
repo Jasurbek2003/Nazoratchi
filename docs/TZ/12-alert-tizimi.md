@@ -103,6 +103,9 @@ Amalga oshirilgan manbalar (S3):
 | `fleet` | `mass_silent` | `true` | Hostlarning ≥ 50% (kamida 2 ta) 120 s dan beri jim (AL-008) |
 | `probe` | `state` | `"down"` / `"up"` | Faol tekshiruv holati (S4). Ixtiyoriy `primary: true/false` filtri (`config.primary`). `unknown`/`paused` holat — noma'lum. Ko'chirilmagan (`moved=false`) va arxivlangan loyiha tekshiruvlari hisoblanmaydi. Incident qamrovi — `project:<id>` |
 | `prober` | `stalled` | `true` | Yoqilgan tekshiruvlar bor, lekin hech biri 180 s da bajarilmagan (AL-085) |
+| `backup` | `age_hours_gt` | butun son (soat) | Loyihaning oxirgi muvaffaqiyatli zaxirasi yoshi > `equals` soat. Hech qachon olinmagan bo'lsa — loyiha shu soatdan eski bo'lgandagina |
+| `backup` | `last_failed` | `true` | `backup_last_status = 0` (appctl `state.json`) |
+| `backup` | `size_small` / `size_large` | `true` | Eng yangi zaxira hajmi oldingi 7 tasi medianasining < 0.5 / > 3 baravari; tarix < 8 ta bo'lsa — noma'lum (FR-BKP-005) |
 | `cert` | `days_left_lte` | butun son | `cert_status` (TLS tekshiruvi): `floor((not_after − hozir)/1 kun) ≤ equals`; manfiy = muddati o'tgan. Holat 2 kundan eski bo'lsa — noma'lum |
 | `cert` | `invalid` | `true` | `chain_ok = false` yoki `hostname_ok = false` |
 | `dns` | `mismatch` | `true` | DNS tekshiruvi `down` (3 marta tasdiqlangan) VA `config.mismatch_after_min` (standart 10) davomida shunday |
@@ -384,6 +387,8 @@ Ahamiyat bo'yicha (asosiy daraja): `critical` 13, `high` 30, `warning` 36, `info
 
 > **S3 da yoqilgan standart qoidalar (16 ta):** AL-001, 002, 003, 008, 009, 014, 015, 019, 020, 021, 022, 023, 025,
 > 047, 048, 086.
+> **S7 da qo'shilgan (2 ta):** AL-090 (o'z zaxirasi 30 soatdan eski), AL-091 (o'z zaxirasi yuborilmadi), `self_backup` state manbasi (`SelfBackup` yozuvlari). AL-084 (evaluator qotdi) core ichida baholanmaydi: `Pinger` ping yubormay qo'yadi va mustaqil watchdog (S-01) Telegram'ga xabar beradi.
+> **S6 da qo'shilgan (6 ta):** AL-068 (zaxira kechikdi, 26 s), AL-069 (50 s, `critical`), AL-070 (muvaffaqiyatsiz), AL-071 (juda kichik), AL-072 (juda katta, `info`), AL-075 (offsite sozlanmagan, `warning`). `backup` manbasi faqat `expect_daily` siyosatli, faol va ko'chirilgan loyihalarni baholaydi; zaxira serveri — loyihaning `production` biriktirishi (bo'lmasa loyiha o'tkazib yuboriladi). Agent 15 daqiqadan beri jim bo'lsa natija noma'lum. AL-068/069 zinapoyasida eng og'iri xabar beradi. AL-075 doimiy ogohlantirish (yopilmaydi, `OFFSITE` to'ldirilguncha yoki silence qilinguncha). AL-073/074/076…083 (F2) yo'q.
 > **S5 da qo'shilgan (8 ta):** AL-035 (kutilgan konteyner), AL-036 (crash loop: 10 daqiqada > 2 ta qayta ishga tushish), AL-057/058/059 (sertifikat 21/7/3 kun), AL-060 (zanjir/nom yaroqsiz), AL-062 (DNS mos emas), AL-063 (yopilgan IP). Sertifikat zinapoyasida eng og'iri xabar beradi (`superseded`); domen DNS si mos emas bo'lsa shu domenning HTTP va sertifikat alertlari bostiriladi (`dns_mismatch`, 6.7.3). AL-062 da NXDOMAIN uchun alohida `critical` hozircha yo'q.
 > **S4 da qo'shilgan (3 ta):** AL-049 (asosiy sayt, `critical`), AL-049H (asosiy bo'lmagan, `high`: katalogdagi "critical (teg `primary`) / high" ikki qoidaga bo'lingan), AL-085 (prober qotdi). Tekshiruv alertlari loyihaning HAMMA serveri pauzada/texnik ishda yoki o'chgan bo'lsa bostiriladi (6.7.3). Qolgan F1 qoidalari (docker, tekshiruvlar, sertifikat, DNS, zaxira) ularning ma'lumoti paydo bo'lgan
 > sprintda qo'shiladi. AL-084/085 tashqi kuzatuvchi (watchdog, S7) bilan. Standart qoidalar bazada yo'q bo'lsagina

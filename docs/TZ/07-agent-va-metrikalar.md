@@ -175,6 +175,8 @@ Kardinallik chegarasi: bitta hostda ≤ 100 konteyner kuzatiladi (oshsa — `doc
 | `nginx_config_ok` | gauge | 0/1 | — | `nginx -t` (kuniga + o'zgarishda; `sudo` kerak: 7.8) | | F3 |
 | `cron_job_last_success_timestamp` | gauge | unix s | `job` | Heartbeat'lar `/var/lib/nazoratchi/heartbeats/<job>` | Cron skript oxirida `nazoratchi-agent beat <job>` chaqiradi (FR-SVC-004) | F1 |
 
+> **S6 da amalga oshirilgan (agent):** `systemd_unit_active`, `systemd_unit_failed` (`systemctl show`, shell yo'q; unit nomi `^[A-Za-z0-9:_.@\-]{1,100}$` ga mos, aks holda sozlama xato), `cron_job_last_success_timestamp{job}` (`heartbeats_dir` fayllari `mtime`; cron skript oxirida `nazoratchi-agent beat <job>`). Yo'q unit (`LoadState=not-found`) — `active=0, failed=0`. F2 metrikalari (`restarts_total`, `uptime`, `failed_units_total`) va `nginx_config_ok` hali yo'q.
+
 ### 7.4.6. `backup` kollektori
 
 Manba — `appctl` yozgan `state.json` (FR-INT-003) **va** papka skaneri (qo'shimcha tekshiruv).
@@ -195,6 +197,8 @@ loyiha.
 | `backup_offsite_last_status` | gauge | 0/1 | — | `state.json` (`offsite.status`) | | F2 |
 | `backup_offsite_last_success_timestamp` | gauge | unix s | — | `state.json` (`offsite.finished_at`) | | F2 |
 | `backup_root_free_bytes` | gauge | bayt | — | `statfs(BACKUP_ROOT)` | Zaxira bo'limidagi bo'sh joy | F2 |
+
+> **S6 da amalga oshirilgan (F1 metrikalari):** `backup_last_status`, `backup_last_success_timestamp`, `backup_last_size_bytes`, `backup_newest_file_age_seconds{kind}`, `backup_files_count{kind}`, `backup_offsite_configured`. Loyiha papkasi nomi `^[A-Za-z0-9_\-]{1,60}$`, `_` bilan boshlanganlari loyiha emas, ≤ 100 loyiha. `*.tmp` va yashirin fayllar, simvolik havolalar hisobga olinmaydi. `kind`: `daily/` — `daily`; `weekly/` da nomida `-files-` bo'lsa `files`, aks holda `weekly`. `backup_last_success_timestamp`: `state.json` `ok` bo'lsa `finished_at`, aks holda eng yangi kunlik fayl `mtime`. `state.json` yo'q bo'lsa (appctl hali yozmagan) xato emas — faqat skaner metrikalari chiqadi; buzuq bo'lsa kollektor xatosi (qolgan loyihalar davom etadi). `error` matni hech qachon metrikaga tushmaydi. `backup_offsite_configured`: avval `_run.json` `offsite.configured`, bo'lmasa `appctl.conf` dagi `OFFSITE=` (matn sifatida o'qiladi, `source` qilinmaydi). `backup_gz_ok`, `backup_dir_bytes`, `backup_root_free_bytes`, `backup_offsite_last_*` — F2.
 
 Offsite zaxira S-00 da turadi; u yerdagi agent bir xil kollektor bilan, lekin `BACKUP_ROOT=/srv/backups/main-server`
 ko'rsatkichi bilan ishlaydi; core mahalliy va offsite natijalarni loyiha nomi bo'yicha solishtiradi
@@ -404,9 +408,9 @@ log:
 
 ### 7.7.1. O'rnatish skripti (`install.sh`) bosqichlari
 
-1. `root` ekanini, `systemd`, `curl`, `sha256sum` borligini tekshiradi.
+1. `root` ekanini, `systemd`, `curl`, `sha256sum`, `minisign` borligini tekshiradi.
 2. Arxitekturani (`uname -m`) aniqlaydi → `amd64` yoki `arm64`.
-3. `https://<core>/agent/v1/nazoratchi-agent-<arch>` va `SHA256SUMS`, `SHA256SUMS.sig` ni yuklaydi.
+3. `https://<core>/agent/v1/nazoratchi-agent-<arch>` va `SHA256SUMS`, `SHA256SUMS.minisig` ni yuklaydi.
 4. **Imzoni tekshiradi** (`minisign` ochiq kaliti skript ichiga joylangan); mos kelmasa to'xtaydi.
 5. `/usr/local/bin/nazoratchi-agent` ga o'rnatadi (rejim `0755`).
 6. `nazoratchi` tizim foydalanuvchisini yaratadi (`--system --no-create-home --shell /usr/sbin/nologin`),
@@ -419,6 +423,8 @@ log:
     ("Nazoratchi'ga ulandi: <host_name>").
 
 Skript idempotent: qayta ishga tushirilsa, mavjud sozlama va tokenni saqlab, binarni yangilaydi.
+
+> **S7:** `deploy/agent/install.sh`, Debian konteynerida sinalgan (`bash deploy/agent/test.sh`): imzo/SHA-256 rad etish, idempotentlik, enroll. Agent birinchi muvaffaqiyatli paketni `paket yuborildi (birinchi)` deb Info darajasida yozadi (skript 30 s shuni kutadi). `ReadOnlyPaths` yo'llari `-` prefiksli (papka yo'q bo'lsa unit yiqilmaydi). `uninstall` core'ga `goodbye` yuboradi.
 
 ### 7.7.2. systemd unit
 

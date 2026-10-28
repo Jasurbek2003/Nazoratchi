@@ -232,3 +232,136 @@ export interface TopItem {
   value: number;
   time: string;
 }
+
+// ------------------------------------------------------------------ S9: zaxira, domen, silence, kanal, qoida
+export type BackupState = "ok" | "late" | "critical" | "failed" | "stale" | "missing" | "unknown" | "none";
+
+export interface BackupItem {
+  project: string;
+  project_id: string;
+  name: string;
+  server: string | null;
+  server_id: string | null;
+  expect_daily: boolean;
+  expect_weekly_files: boolean;
+  require_offsite: boolean;
+  state: BackupState;
+  age_hours: number | null;
+  last_success_at: string | null;
+  last_size_bytes: number | null;
+  last_status: "ok" | "fail" | null;
+  daily_count: number;
+  weekly_count: number;
+  files_count: number;
+  newest_age_seconds: Record<string, number>;
+  offsite_configured: boolean | null;
+  data_seen_at: string | null;
+}
+
+export interface BackupDetail extends BackupItem {
+  runs: { finished_at: string; size_bytes: number | null }[];
+  size_median_7: number | null;
+  size_ratio: number | null;
+  size_anomaly: boolean;
+}
+
+export interface Domain {
+  id: string;
+  project: string | null;
+  project_slug: string | null;
+  fqdn: string;
+  expected_ips: unknown;
+  dns_provider: string;
+  registrar: string;
+  controlled_by: string;
+  tls_enabled: boolean;
+  status: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface DnsResolverRow {
+  resolver: string;
+  rtype: string;
+  time: string;
+  answers: unknown;
+  matches: boolean | null;
+  rcode: string | number | null;
+  latency_ms: number | null;
+}
+
+export interface DnsChangeRow {
+  resolver: string;
+  rtype: string;
+  old_answers: unknown;
+  new_answers: unknown;
+  changed_at: string;
+}
+
+export interface DnsInfo {
+  resolvers: DnsResolverRow[];
+  changes: DnsChangeRow[];
+}
+
+export interface Matcher {
+  label: string;
+  op: "=" | "!=" | "=~";
+  value: string;
+}
+
+export interface Silence {
+  id: string;
+  matchers: Matcher[];
+  starts_at: string;
+  ends_at: string;
+  reason: string;
+  created_by: string | null;
+  created_at: string;
+  cancelled_at: string | null;
+}
+
+export interface MaintenanceWindow {
+  id: string;
+  scope: { servers?: string[]; projects?: string[] };
+  starts_at: string;
+  ends_at: string;
+  reason: string;
+  created_by: string | null;
+  cancelled_at: string | null;
+}
+
+export interface NotificationChannel {
+  id: string;
+  type: string;
+  name: string;
+  min_severity: string;
+  quiet_hours: unknown;
+  is_default: boolean;
+  enabled: boolean;
+  last_ok_at: string | null;
+  last_error: string;
+  config_masked: { bot_token?: string; chat_id?: string | number | null; error?: string };
+}
+
+export interface AlertRule {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  scope: { type?: string } & Record<string, unknown>;
+  condition: unknown;
+  for_seconds: number;
+  resolve_after_seconds: number;
+  severity: string;
+  channels: unknown;
+  runbook_key: string;
+  runbook_hint: string;
+  enabled: boolean;
+  built_in: boolean;
+  updated_at: string;
+}
+
+export interface IncidentPage {
+  items: Incident[];
+  next_before: string | null;
+}

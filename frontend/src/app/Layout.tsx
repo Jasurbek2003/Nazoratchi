@@ -12,7 +12,14 @@ import { useNow } from "../lib/useNow";
 
 const ROLE_LABEL: Record<Me["role"], string> = { owner: "Egasi", operator: "Operator", viewer: "Kuzatuvchi" };
 
-const NAV: { to: string; label: string; end?: boolean; icon: ReactNode }[] = [
+interface NavItem {
+  to: string;
+  label: string;
+  end?: boolean;
+  icon: ReactNode;
+}
+
+const NAV: NavItem[] = [
   {
     to: "/",
     label: "Bosh sahifa",
@@ -35,7 +42,97 @@ const NAV: { to: string; label: string; end?: boolean; icon: ReactNode }[] = [
     label: "Loyihalar",
     icon: <path d="M3 5.5A1.5 1.5 0 014.5 4h3l1.5 2h6.5A1.5 1.5 0 0117 7.5v7a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 013 14.5v-9z" />,
   },
+  {
+    to: "/incidents",
+    label: "Incidentlar",
+    icon: <path d="M10 2.8l7.4 13H2.6L10 2.8zM10 8v3.5M10 13.8v.1" />,
+  },
+  {
+    to: "/backups",
+    label: "Zaxiralar",
+    icon: (
+      <>
+        <ellipse cx="10" cy="5" rx="6" ry="2.4" />
+        <path d="M4 5v10c0 1.3 2.7 2.4 6 2.4s6-1.1 6-2.4V5M4 10c0 1.3 2.7 2.4 6 2.4s6-1.1 6-2.4" />
+      </>
+    ),
+  },
+  {
+    to: "/domains",
+    label: "Domenlar",
+    icon: (
+      <>
+        <circle cx="10" cy="10" r="7" />
+        <path d="M3 10h14M10 3c2 2 3 4.4 3 7s-1 5-3 7c-2-2-3-4.4-3-7s1-5 3-7z" />
+      </>
+    ),
+  },
+  {
+    to: "/maintenance",
+    label: "Texnik ish",
+    icon: <path d="M12.5 3.5a3.5 3.5 0 00-3.2 4.8L3.5 14.1a1.5 1.5 0 002.1 2.1l5.8-5.8a3.5 3.5 0 004.8-3.2l-2.2 2.2-1.9-.5-.5-1.9 2.2-2.2-.3-.3z" />,
+  },
+  {
+    to: "/settings",
+    label: "Sozlamalar",
+    icon: (
+      <>
+        <circle cx="10" cy="10" r="2.6" />
+        <path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4" />
+      </>
+    ),
+  },
 ];
+
+/** Mobil pastki panelda to'g'ridan-to'g'ri ko'rinadigan bo'limlar; qolganlari "Yana" menyusida. */
+const MOBILE_PRIMARY = ["/", "/servers", "/projects", "/incidents"];
+const MOBILE_PRIMARY_ITEMS = NAV.filter((n) => MOBILE_PRIMARY.includes(n.to));
+const MOBILE_MORE_ITEMS = NAV.filter((n) => !MOBILE_PRIMARY.includes(n.to));
+
+function MobileNav() {
+  const [open, setOpen] = useState(false);
+  const location = useLocation();
+  const moreActive = MOBILE_MORE_ITEMS.some((n) => location.pathname.startsWith(n.to));
+  useEffect(() => setOpen(false), [location.pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+  const cell = (active: boolean) =>
+    `flex min-h-14 flex-col items-center justify-center gap-0.5 px-0.5 text-[11px] font-medium leading-tight ${active ? "text-white" : "text-[var(--rail-muted)]"}`;
+  return (
+    <nav aria-label="Asosiy navigatsiya (mobil)" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-[var(--rail-border)] bg-[var(--rail)] md:hidden">
+      {MOBILE_PRIMARY_ITEMS.map((n) => (
+        <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cell(isActive)}>
+          <NavIcon>{n.icon}</NavIcon>
+          {n.label}
+        </NavLink>
+      ))}
+      <button type="button" className={cell(moreActive || open)} aria-expanded={open} aria-controls="mobile-more" onClick={() => setOpen((v) => !v)}>
+        <NavIcon>
+          <path d="M4 10h.01M10 10h.01M16 10h.01" strokeWidth="3" />
+        </NavIcon>
+        Yana
+      </button>
+      {open && (
+        <div id="mobile-more" className="absolute inset-x-2 bottom-[calc(100%+8px)] rounded-lg border border-[var(--rail-border)] bg-[var(--rail)] p-1 shadow-xl">
+          {MOBILE_MORE_ITEMS.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              className={({ isActive }) => `flex min-h-11 items-center gap-3 rounded-md px-3 font-medium ${isActive ? "bg-[var(--rail-active)] text-white" : "text-[var(--rail-text)]"}`}
+            >
+              <NavIcon>{n.icon}</NavIcon>
+              {n.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </nav>
+  );
+}
 
 function NavIcon({ children }: { children: ReactNode }) {
   return (
@@ -256,21 +353,7 @@ export function Layout({ me }: { me: Me }) {
         </main>
       </div>
 
-      <nav aria-label="Asosiy navigatsiya (mobil)" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-[var(--rail-border)] bg-[var(--rail)] md:hidden">
-        {NAV.map((n) => (
-          <NavLink
-            key={n.to}
-            to={n.to}
-            end={n.end}
-            className={({ isActive }) =>
-              `flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium ${isActive ? "text-white" : "text-[var(--rail-muted)]"}`
-            }
-          >
-            <NavIcon>{n.icon}</NavIcon>
-            {n.label}
-          </NavLink>
-        ))}
-      </nav>
+      <MobileNav />
     </div>
   );
 }

@@ -1,8 +1,18 @@
 /** TanStack Query kancalari. staleTime 10 s (ro'yxatlar), 30 s (grafiklar) — TZ 13.8. */
-import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, request } from "./client";
 import type {
   AlertInstance,
+  AlertRule,
+  BackupDetail,
+  BackupItem,
+  DnsInfo,
+  Domain,
+  IncidentPage,
+  MaintenanceWindow,
+  Matcher,
+  NotificationChannel,
+  Silence,
   Cert,
   Container,
   Filesystem,
@@ -312,5 +322,203 @@ export function useMetrics(serverId: string, names: string[], rangeKey: string) 
       refetchInterval: 60_000,
       placeholderData: keepPreviousData,
     })),
+  });
+}
+
+// ------------------------------------------------------------------ S9: zaxira
+export function useBackups() {
+  return useQuery({
+    queryKey: ["backups"] as const,
+    queryFn: async () => (await api.get<ServerEnvelope<BackupItem>>("backups/")).items,
+    staleTime: LIST_STALE_MS,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useBackup(slug: string) {
+  return useQuery({
+    queryKey: ["backup", slug] as const,
+    queryFn: () => api.get<BackupDetail>(`backups/${encodeURIComponent(slug)}`),
+    staleTime: LIST_STALE_MS,
+    refetchInterval: 60_000,
+  });
+}
+
+// ------------------------------------------------------------------ S9: domenlar
+export function useDomains() {
+  return useQuery({
+    queryKey: ["domains"] as const,
+    queryFn: async () => (await api.get<ServerEnvelope<Domain>>("domains/")).items,
+    staleTime: LIST_STALE_MS,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useDomain(id: string) {
+  return useQuery({
+    queryKey: ["domain", id] as const,
+    queryFn: () => api.get<Domain>(`domains/${id}`),
+    staleTime: LIST_STALE_MS,
+  });
+}
+
+export function useDomainDns(id: string) {
+  return useQuery({
+    queryKey: ["domain-dns", id] as const,
+    queryFn: () => api.get<DnsInfo>(`domains/${id}/dns`),
+    staleTime: LIST_STALE_MS,
+    refetchInterval: 60_000,
+  });
+}
+
+// ------------------------------------------------------------------ S9: incidentlar ro'yxati
+/** Tarixiy ro'yxat (hamma holatlar). `next_before` bilan sahifalanadi. */
+export function useIncidentList(filter: { status?: string; severity?: string }) {
+  return useInfiniteQuery({
+    queryKey: ["incidents", "list", filter.status ?? "", filter.severity ?? ""] as const,
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => api.get<IncidentPage>("incidents/", { ...filter, before: pageParam }),
+    getNextPageParam: (last) => last.next_before ?? undefined,
+    staleTime: LIST_STALE_MS,
+    refetchInterval: POLL_MS,
+  });
+}
+
+function invalidateIncidents(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: ["incidents"] });
+  void qc.invalidateQueries({ queryKey: ["incident"] });
+}
+
+export function useIncidentComment(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (text: string) => api.post<unknown>(`incidents/${id}/comments`, { text }),
+    onSuccess: () => invalidateIncidents(qc),
+  });
+}
+
+export function useResolveIncident(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<Incident>(`incidents/${id}/resolve`, {}),
+    onSuccess: () => invalidateIncidents(qc),
+  });
+}
+
+// ------------------------------------------------------------------ S9: silence va texnik ish
+export function useSilences() {
+  return useQuery({
+    queryKey: ["silences"] as const,
+    queryFn: async () => (await api.get<ServerEnvelope<Silence>>("silences/")).items,
+    staleTime: LIST_STALE_MS,
+    refetchInterval: POLL_MS * 3,
+  });
+}
+
+export function useCreateSilence() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { matchers: Matcher[]; ends_at: string; reason: string }) => api.post<Silence>("silences/", body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["silences"] }),
+  });
+}
+
+export function useCancelSilence() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => request<void>("DELETE", `silences/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["silences"] }),
+  });
+}
+
+export function useMaintenance() {
+  return useQuery({
+    queryKey: ["maintenance"] as const,
+    queryFn: async () => (await api.get<ServerEnvelope<MaintenanceWindow>>("maintenance/")).items,
+    staleTime: LIST_STALE_MS,
+    refetchInterval: POLL_MS * 3,
+  });
+}
+
+export function useCreateMaintenance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { scope: { servers?: string[]; projects?: string[] }; starts_at: string; ends_at: string; reason: string }) =>
+      api.post<MaintenanceWindow>("maintenance/", body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["maintenance"] }),
+  });
+}
+
+export function useCancelMaintenance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => request<void>("DELETE", `maintenance/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["maintenance"] }),
+  });
+}
+
+// ------------------------------------------------------------------ S9: sozlamalar
+export function useChannels(enabled = true) {
+  return useQuery({
+    queryKey: ["channels"] as const,
+    queryFn: async () => (await api.get<ServerEnvelope<NotificationChannel>>("channels/")).items,
+    staleTime: LIST_STALE_MS,
+    enabled,
+  });
+}
+
+export interface ChannelInput {
+  type: "telegram";
+  name: string;
+  min_severity: string;
+  config: { bot_token: string; chat_id: string | number };
+}
+
+export function useCreateChannel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ChannelInput) => api.post<NotificationChannel>("channels/", body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["channels"] }),
+  });
+}
+
+export function useUpdateChannel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...patch }: { id: string; enabled?: boolean }) => request<NotificationChannel>("PATCH", `channels/${id}`, { body: patch }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["channels"] }),
+  });
+}
+
+export function useDeleteChannel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => request<void>("DELETE", `channels/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["channels"] }),
+  });
+}
+
+export function useTestChannel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<{ ok: boolean; status: string; error: string }>(`channels/${id}/test`, {}),
+    // Yuborilmasa backend 502 qaytaradi (xato sifatida keladi); `last_error` yangilanishi uchun doim qayta o'qiymiz.
+    onSettled: () => void qc.invalidateQueries({ queryKey: ["channels"] }),
+  });
+}
+
+export function useAlertRules() {
+  return useQuery({
+    queryKey: ["alert-rules"] as const,
+    queryFn: async () => (await api.get<ServerEnvelope<AlertRule>>("alert-rules/")).items,
+    staleTime: LIST_STALE_MS,
+  });
+}
+
+export function useToggleRule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => request<AlertRule>("PATCH", `alert-rules/${id}`, { body: { enabled } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["alert-rules"] }),
   });
 }

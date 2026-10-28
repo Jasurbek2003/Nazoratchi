@@ -13,6 +13,14 @@ const ServersPage = lazy(() => import("../pages/ServersPage"));
 const ServerPage = lazy(() => import("../pages/ServerPage"));
 const ProjectsPage = lazy(() => import("../pages/ProjectsPage"));
 const ProjectPage = lazy(() => import("../pages/ProjectPage"));
+const IncidentsPage = lazy(() => import("../pages/IncidentsPage"));
+const IncidentPage = lazy(() => import("../pages/IncidentPage"));
+const BackupsPage = lazy(() => import("../pages/BackupsPage"));
+const BackupPage = lazy(() => import("../pages/BackupPage"));
+const DomainsPage = lazy(() => import("../pages/DomainsPage"));
+const DomainPage = lazy(() => import("../pages/DomainPage"));
+const MaintenancePage = lazy(() => import("../pages/MaintenancePage"));
+const SettingsPage = lazy(() => import("../pages/SettingsPage"));
 const NotFoundPage = lazy(() => import("../pages/NotFoundPage"));
 
 export function createQueryClient(): QueryClient {
@@ -53,6 +61,14 @@ export const routes: RouteObject[] = [
       { path: "/servers/:id", element: <ServerPage /> },
       { path: "/projects", element: <ProjectsPage /> },
       { path: "/projects/:id", element: <ProjectPage /> },
+      { path: "/incidents", element: <IncidentsPage /> },
+      { path: "/incidents/:id", element: <IncidentPage /> },
+      { path: "/backups", element: <BackupsPage /> },
+      { path: "/backups/:slug", element: <BackupPage /> },
+      { path: "/domains", element: <DomainsPage /> },
+      { path: "/domains/:id", element: <DomainPage /> },
+      { path: "/maintenance", element: <MaintenancePage /> },
+      { path: "/settings", element: <SettingsPage /> },
       { path: "/home", element: <Navigate to="/" replace /> },
       { path: "*", element: <NotFoundPage /> },
     ],

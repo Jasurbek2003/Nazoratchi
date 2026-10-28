@@ -37,7 +37,7 @@ nashriga qadar qayta tekshiriladi.
 ### 18.7.3. Talablarni bosqichlarga o'tkazish qoidasi
 
 - **F1 ga kiradi:** server/loyiha reyestri, agent (tizim, disk, tarmoq, Docker, systemd, zaxira,
-  sertifikat), heartbeat, HTTP/TLS/DNS tekshiruvlari (asosiy), 32 ta alert (server o'chdi, resurslar,
+  sertifikat), heartbeat, HTTP/TLS/DNS tekshiruvlari (asosiy), 35 ta alert (server o'chdi, resurslar,
   konteyner, sayt, sertifikat, DNS, zaxira, heartbeat, o'zini kuzatish), Telegram + ack, asosiy panel,
   watchdog, o'z zaxirasi, deploy va asosiy runbook'lar.
 - **F2 ga kiradi:** 2FA, kengaytirilgan zaxira (yaxlitlik, offsite 2-daraja, drill), kesib o'tish

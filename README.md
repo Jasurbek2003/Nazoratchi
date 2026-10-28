@@ -3,7 +3,7 @@
 Infratuzilma monitoringi platformasi: serverlar, loyihalar, zaxira nusxalar, sertifikat va domenlar
 holatini bitta oynada ko'rsatadi va muammo haqida Telegram orqali xabar beradi.
 
-- Texnik topshiriq: [`docs/TZ/`](docs/TZ/) (v1.16; `.docx`/`.pdf` ham shu yerda)
+- Texnik topshiriq: [`docs/TZ/`](docs/TZ/) (v1.17; `.docx`/`.pdf` ham shu yerda)
 - Reja: [`docs/TZ/ROADMAP.md`](docs/TZ/ROADMAP.md) · Owner qarorlari: [`docs/TZ/QARORLAR.md`](docs/TZ/QARORLAR.md)
 - F0 natijasi: [`docs/P-02-timescale-sinov.md`](docs/P-02-timescale-sinov.md) (protokol prototipi, R-102)
 

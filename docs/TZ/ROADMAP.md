@@ -10,7 +10,7 @@ Boshlanish sanasi shartli: **2026-10-26 (dushanba)**. Sana siljisa, haftalar o'z
 |---|---|---|---|---|---|
 | Hafta 0 | — | — | 0 | 2026-10-30 | Qarorlar, oraliq himoya |
 | F0 — Tayyorgarlik | 7.5 | S0 | 1–2 | 2026-11-08 | Protokol prototipi, `appctl` o'zgartirishlari |
-| F1 — MVP | 80 | S1–S10 | 3–22 | 2027-03-28 | 32 alert, Telegram, asosiy panel, UAT tayyor |
+| F1 — MVP | 80 | S1–S10 | 3–22 | 2027-03-28 | 35 alert, Telegram, asosiy panel, UAT tayyor |
 | F1 UAT (S-01 da 14 kun) | — | F2 bilan parallel | 23–24 | 2027-04-11 | UAT-01…12 |
 | F2 — Kengaytirilgan | 73 | S11–S19 | 23–40 | 2027-08-01 | 2FA, hisobotlar, drill, offsite 2-daraja, ru/en |
 | F3 — Yetuklik | 32 | S20–S23 | 41–48 | 2027-09-26 | Status sahifa, eskalatsiya, avto-drill, supply-chain |
@@ -61,7 +61,7 @@ Maqsad: texnik xavflarni erta yo'qotish (R-102 Timescale, R-103 Go, R-109 `appct
 
 **Holat (2026-10-28, S9):** B9 frontend: zaxira, domen (DNS, sertifikat), incident (ack, izoh, qo'lda yopish), texnik ish va silence, sozlamalar (Telegram kanallari, qoidalar) sahifalari; 171 test. B12: prod compose, nginx, `bootstrap.sh`, backend/frontend image'lari, `release.yml`, CI kengaytmasi, 34 runbook fayli. **Sinalmagan:** haqiqiy ghcr release, bo'sh serverda `bootstrap.sh`, brauzerda qo'lda ko'rik. **Kechiktirildi:** restore drill formasi va offsite solishtirish UI (backend API yo'q), domen muddati ustuni va "kesib o'tish yordamchisi", incident runbook bloki va sabab tahriri, kanal `quiet_hours`, texnik ish nazorat ro'yxati.
 
-**Holat (2026-10-28, S10):** B13: xavfsizlik testlari (RBAC matritsasi barcha `/api/v1/` yo'nalishlari bo'yicha, XSS/SQLi, sirlar, cookie; 19 test), chaos testlari (fuzz ingest, kesh yo'qolishi, leader), yuklama simulyatori `tools/simulator`; backend 449 test. Topilib tuzatilgan: JSON 404/500, DB `connect_timeout` (baza o'chiqda `/healthz` osilardi), `evaluator`/`prober` leader qulfi. **Sinalmagan (haqiqiy muhit kerak):** ZAP, testssl, `nmap`, T-C-03..13, T-P-02..10, 14 kunlik UAT. **UAT to'sig'i** (restore drill kiritish) keyin yopildi: `/backups/drills` API, karta sahifasidagi forma va tarix, ro'yxatda drill belgisi; AL-081…083 F2 da. Tafsilot: `docs/sinov/B13-natijalar.md`.
+**Holat (2026-10-28, S10):** B13: xavfsizlik testlari (RBAC matritsasi barcha `/api/v1/` yo'nalishlari bo'yicha, XSS/SQLi, sirlar, cookie; 19 test), chaos testlari (fuzz ingest, kesh yo'qolishi, leader), yuklama simulyatori `tools/simulator`; backend 449 test. Topilib tuzatilgan: JSON 404/500, DB `connect_timeout` (baza o'chiqda `/healthz` osilardi), `evaluator`/`prober` leader qulfi. **Sinalmagan (haqiqiy muhit kerak):** ZAP, testssl, `nmap`, T-C-03..13, T-P-02..10, 14 kunlik UAT. **UAT to'sig'i** (restore drill kiritish) keyin yopildi: `/backups/drills` API, karta sahifasidagi forma va tarix, ro'yxatda drill belgisi; AL-081…083 keyin F1 ga olindi (35 ta F1 alert). Tafsilot: `docs/sinov/B13-natijalar.md`.
 
 **Holat (2026-10-28, S7/S8):** B11: `/healthz`, `/readyz`, `/metrics`, evaluator ping (AL-084 watchdog orqali), o'z zaxirasi (`age` + Telegram, `self_backup`/`restore_self_backup`, AL-090/091). B5d: `install.sh` (minisign, idempotent, docker-socket-proxy), `uninstall`, core'da `/install.sh` va `/agent/v1/`. Mustaqil Python watchdog (`watchdog/`, 12 test). F1 S8: React/TS frontend asosi (kirish, dashboard, loyiha, server, incident; 118 test). **Sinalmagan:** haqiqiy `systemctl`/Docker proxy/Telegram bot, brauzerda qo'lda ko'rik. Qolgan: backend Docker image'ida `install.sh` yo'q (context `backend/`, B12), frontend sahifalari (zaxira, alertlar, sozlamalar) keyingi sprintda.
 
@@ -112,7 +112,7 @@ Eslatma: M1 dan boshlab S-00 ga agent **qo'lda** o'rnatiladi (`install.sh` S7 da
 | **M4 — F1 qabul (UAT)** | 22–24 | 2027-04-11 | S-01 da agent, 14 kun uzluksiz kuzatuv, UAT-01…12 |
 
 ### F1 chiqish mezonlari
-- 32 ta F1 alert yoqilgan va har biri sinalgan (rost va yolg'on holat).
+- 35 ta F1 alert yoqilgan va har biri sinalgan (rost va yolg'on holat).
 - UAT-03…UAT-07: 3 server 14 kun bo'shliqsiz, server o'chirish ≤ 2 daqiqa, soxta alert ≤ 5%.
 - T-P-01, T-P-02, T-P-10 (yuklama, agent resursi) mezonlari bajarilgan.
 - Zaxira va tiklash sinovi (T-DEP-05), xavfsizlik ro'yxati (14.13) o'tgan.

@@ -355,9 +355,9 @@ Metrika nomlari 7-bo'limdagi katalogga mos. `*` — chegara sozlanadi.
 | AL-078 | Offsite nusxa mos emas | project | Nom/hajm mos kelmaydi 30 daqiqadan ortiq | 30 daq | warning | F2 | RB-033 |
 | AL-079 | Zaxira bo'limida joy kam | host | `backup_root_free_bytes` < 15% yoki < 5 GB* | 10 daq | warning (< 5%: critical) | F2 | RB-004 |
 | AL-080 | Offsite serverda joy kam | host (offsite) | Xuddi shu, offsite serverda | 10 daq | warning | F2 | RB-033 |
-| AL-081 | Restore drill muddati yaqin | project | Oxirgi muvaffaqiyatli drill > `drill_every_days − 14` kun | 0 | info | F2 | RB-034 |
-| AL-082 | Restore drill muddati o'tdi | project | Oxirgi muvaffaqiyatli drill > `drill_every_days` kun (yoki hech qachon) | 0 | warning | F2 | RB-034 |
-| AL-083 | Restore drill muvaffaqiyatsiz | project | Oxirgi drill natijasi `failed` | 0 | high | F2 | RB-034 |
+| AL-081 | Restore drill muddati yaqin | project | Oxirgi muvaffaqiyatli drill > `drill_every_days − 14` kun | 0 | info | F1 | RB-034 |
+| AL-082 | Restore drill muddati o'tdi | project | Oxirgi muvaffaqiyatli drill > `drill_every_days` kun (yoki hech qachon) | 0 | warning | F1 | RB-034 |
+| AL-083 | Restore drill muvaffaqiyatsiz | project | Oxirgi drill natijasi `failed` | 0 | high | F1 | RB-034 |
 
 ### 12.7.11. Nazoratchi'ning o'zi (K)
 
@@ -378,7 +378,7 @@ Metrika nomlari 7-bo'limdagi katalogga mos. `*` — chegara sozlanadi.
 
 | Faza | Alertlar soni |
 |---|---|
-| F1 (MVP) | 32 ta (muhim: server o'chdi, disk, RAM, konteyner, sayt, sertifikat, DNS, zaxira, heartbeat, o'zini kuzatish) |
+| F1 (MVP) | 35 ta (muhim: server o'chdi, disk, RAM, konteyner, sayt, sertifikat, DNS, zaxira, heartbeat, o'zini kuzatish) |
 | F2 | 48 ta |
 | F3 | 9 ta |
 | **Jami** | **89 ta** |

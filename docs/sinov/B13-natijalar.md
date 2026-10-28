@@ -70,7 +70,7 @@ Dev `runserver` (bitta jarayon) natijasi prod uvicorn uchun konservativ taxmin: 
 | UAT-04..06 | Haqiqiy sinovlar | Runbook'lar va alertlar tayyor; o'tkazish S-01 da |
 | UAT-07 | Soxta alert ≤ 5% | 14 kun davomida qo'lda belgilanadi |
 | UAT-08 | Seed loyiha tekshiruvlari | `seed_registry` bor; haqiqiy muhitda tekshiriladi |
-| UAT-09 | 2 ta restore drill | Forma va API tayyor (`/backups/drills`, karta sahifasi); 2 ta loyiha uchun haqiqiy drill'ni Owner o'tkazadi (TZ 10.8.3) |
+| UAT-09 | 2 ta restore drill | Forma, API va AL-081…083 tayyor; 2 ta loyiha uchun haqiqiy drill'ni Owner o'tkazadi (TZ 10.8.3) |
 | UAT-10 | Nazoratchi tiklash mashqi | RB-044 tayyor; vaqtni o'lchash kerak |
 | UAT-11 | Hujjatlar | README, 34 runbook, o'rnatish yo'riqnomasi mavjud |
 | UAT-12 | Xavfsizlik ro'yxati | 1-bo'limdagi "Kutilmoqda" bandlari yopilishi kerak |

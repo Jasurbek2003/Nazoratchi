@@ -6,7 +6,7 @@
 |---|---|
 | **Hujjat turi** | Texnik topshiriq (Technical Specification) |
 | **Loyiha ishchi nomi** | Nazoratchi (Nazoratchi Monitor) |
-| **Versiya** | 1.16 (loyiha) |
+| **Versiya** | 1.17 (loyiha) |
 | **Sana** | 2026-10-26 |
 | **Holat** | Tasdiqlash uchun taqdim etilgan |
 | **Buyurtmachi / mahsulot egasi** | Jasurbek (Avlo loyihalari egasi) |
@@ -38,6 +38,7 @@
 | 1.14 | 2026-10-28 | Claude | F1 S9: frontend sahifalari (zaxira, domen, incident, texnik ish/silence, sozlamalar) va B12 deploy. Aniqlashtirishlar: prod compose `evaluator`/`prober`/`notifier`/`self-backup` servislari, Celery yo'q (15.4); backend image build context repo ildizi, `install.sh` va `seed` image ichida (15.3, 15.4); frontend image `nginx-unprivileged` 8080 (15.4); `/metrics` va `/readyz` nginx'da tashqariga berilmaydi, SSE `stream` yo'q (15.6); `deploy/bootstrap.sh` (15.7); `release.yml` va CI joblari (15.10); RB-044 haqiqiy `restore_self_backup` buyruqlari bilan, runbook'lar `docs/runbooks/` da (15.9, 18.2); mobil pastki panel 5 ustun (13.9) |
 | 1.15 | 2026-10-28 | Claude | F1 S10: sinov va mustahkamlash (B13). Aniqlashtirishlar: `evaluator` va `prober` leader qulfi `pg_try_advisory_lock` bilan amalga oshirildi (15.4); ulanish `connect_timeout=5`, baza o'chiq bo'lsa `/healthz` 5 s da `503` (16.6, T-C-01); noma'lum `/api/`, `/ingest/`, `/agent/` yo'llari JSON `404`, `500` tafsilotsiz JSON (9.1.1); 14.13 va 16.5–16.7 bandlari holati `docs/sinov/B13-natijalar.md` da; `tools/simulator` yuklama simulyatori (16.9) |
 | 1.16 | 2026-10-28 | Claude | F1 S10 davomi: restore drill (UC-11, FR-BKP-016) F2 dan F1 ga olindi. Aniqlashtirishlar: `restore_drills` jadvali va `/backups/drills` API (9.7), zaxira jadvali/kartasida `drill` bloki — "hech qachon" va muddati o'tgani ko'rinadi (R-117); frontend: karta sahifasida forma va tarix, ro'yxatda drill belgisi (13, SCR-07). AL-081…083 F2 da qoladi |
+| 1.17 | 2026-10-28 | Claude | F1 S10 davomi: AL-081, AL-082, AL-083 (restore drill muddati/natijasi) F2 dan F1 ga olindi, F1 alertlar soni 32 → 35 (12.7.10, 12.9). Aniqlashtirishlar: yangi `drill` state manbasi (`due_soon`, `overdue`, `failed`), faqat faol, ko'chirilgan `expect_daily` loyihalar; AL-081 muddat o'tmaguncha yonadi, o'tgach AL-082 (takroriy shovqin yo'q); hech qachon drill o'tkazilmagan loyiha `overdue`; muvaffaqiyatsiz drill muddat taymerini qayta boshlamaydi; RB-034 to'ldirildi |
 
 Hujjatga o'zgartirish kiritish tartibi: har bir o'zgarish yangi qator sifatida shu jadvalga
 yoziladi; talab identifikatorlari (FR-..., NFR-...) hech qachon qayta ishlatilmaydi,

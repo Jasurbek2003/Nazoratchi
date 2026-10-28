@@ -6,7 +6,7 @@ import { useCurrentUser, usePageTitle } from "../app/context";
 import { EmptyState, ErrorState, SkeletonRows } from "../components/Feedback";
 import { PageHeader } from "../components/FormField";
 import { StatusBadge, STATUS_CLASS } from "../components/Status";
-import { backupState, formatHours } from "../lib/backups";
+import { backupState, drillBadge, formatHours } from "../lib/backups";
 import { formatBytes, formatDateTime } from "../lib/format";
 
 const COLS = "md:grid-cols-[minmax(150px,1.4fr)_minmax(90px,1fr)_110px_90px_130px_150px]";
@@ -19,6 +19,7 @@ export function OffsiteBadge({ item }: { item: Pick<BackupItem, "offsite_configu
 
 const Row = memo(function Row({ item, tz }: { item: BackupItem; tz: string }) {
   const st = backupState(item.state);
+  const drill = drillBadge(item.drill);
   return (
     <li data-testid="backup-row" className={`panel relative grid grid-cols-2 items-start gap-x-4 gap-y-2 py-3 pl-4 pr-3 hover:bg-surface-2 ${COLS}`}>
       <span className={`absolute inset-y-0 left-0 w-1 rounded-l-[10px] ${STATUS_CLASS[st.status].bar}`} aria-hidden />
@@ -44,8 +45,11 @@ const Row = memo(function Row({ item, tz }: { item: BackupItem; tz: string }) {
         <p className="text-xs text-muted md:sr-only">Offsite</p>
         <OffsiteBadge item={item} />
       </div>
-      <div>
+      <div className="space-y-1">
         <StatusBadge status={st.status} label={st.label} size="sm" />
+        <p>
+          <StatusBadge status={drill.status} label={drill.label} size="sm" />
+        </p>
       </div>
     </li>
   );

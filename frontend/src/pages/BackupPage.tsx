@@ -7,6 +7,7 @@ import { StatusBadge } from "../components/Status";
 import { backupState, formatHours } from "../lib/backups";
 import { formatBytes, formatDateTime, formatNumber } from "../lib/format";
 import { OffsiteBadge } from "./BackupsPage";
+import { DrillSection } from "./DrillSection";
 
 function SizeBars({ runs }: { runs: { finished_at: string; size_bytes: number | null }[] }) {
   const max = Math.max(1, ...runs.map((r) => r.size_bytes ?? 0));
@@ -132,6 +133,8 @@ export default function BackupPage() {
             </div>
           )}
         </section>
+
+        <DrillSection backup={b} canWrite={me.role !== "viewer"} tz={me.timezone} />
 
         <section className="panel p-4 lg:col-span-2" aria-labelledby="bk-runs">
           <h2 id="bk-runs" className="mb-2 text-[15px] font-semibold">

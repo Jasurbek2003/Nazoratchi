@@ -106,6 +106,7 @@ def test_patch_corrects_fields_and_cannot_move_project() -> None:
     moved = call(op, "patch", f"/api/v1/backups/drills/{drill_id}", {"project": "lutfan_ai"})
     assert moved.status_code == 400
     entry = AuditLog.objects.get(action="drill.update")
+    assert entry.before is not None and entry.after is not None
     assert entry.before["duration_s"] == 840 and entry.after["duration_s"] == 900
     assert (
         call(op, "get", "/api/v1/backups/drills/00000000-0000-0000-0000-000000000000").status_code

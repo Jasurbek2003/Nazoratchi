@@ -1,8 +1,8 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
-import type { BackupDetail, BackupItem } from "../api/types";
-import { apiError, mockFetch, renderPage } from "../test/utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { BackupDetail, BackupItem, Drill } from "../api/types";
+import { apiError, ME, mockFetch, renderPage } from "../test/utils";
 import BackupPage from "./BackupPage";
 import BackupsPage from "./BackupsPage";
 
@@ -27,6 +27,7 @@ function item(over: Partial<BackupItem> = {}): BackupItem {
     newest_age_seconds: {},
     offsite_configured: false,
     data_seen_at: null,
+    drill: { every_days: 90, last: null, last_success_days: null, never: true, overdue: true },
     ...over,
   };
 }
@@ -80,6 +81,7 @@ describe("BackupPage", () => {
       size_median_7: 40 * 1024 * 1024,
       size_ratio: 0.05,
       size_anomaly: true,
+      drills: [],
     };
     mockFetch({ "GET /api/v1/backups/biznesradar": { body: detail } });
     renderPage(<BackupPage />, { path: "/backups/:slug", route: "/backups/biznesradar" });
@@ -93,5 +95,80 @@ describe("BackupPage", () => {
     mockFetch({ "GET /api/v1/backups/yoq": apiError(404, "not_found", "Loyiha topilmadi.") });
     renderPage(<BackupPage />, { path: "/backups/:slug", route: "/backups/yoq" });
     expect(await screen.findByText("Loyiha topilmadi")).toBeInTheDocument();
+  });
+});
+
+function drillRow(over: Partial<Drill> = {}): Drill {
+  return {
+    id: "d1",
+    project: "biznesradar",
+    performed_at: "2026-10-20T10:00:00Z",
+    performed_by: "egasi",
+    backup_file: "BiznesRadar-20261019-031501.sql.gz",
+    backup_age_h: 7,
+    duration_s: 860,
+    tables_count: 42,
+    rows_count: 1250000,
+    result: "success",
+    notes: "",
+    ...over,
+  };
+}
+
+describe("Restore drill", () => {
+  beforeEach(() => {
+    document.cookie = "csrftoken=tok; path=/";
+  });
+
+  it("hech qachon o'tkazilmagan bo'lsa shuni aniq ko'rsatadi", async () => {
+    mockFetch({ "GET /api/v1/backups/biznesradar": { body: { ...item(), runs: [], size_median_7: null, size_ratio: null, size_anomaly: false, drills: [] } } });
+    renderPage(<BackupPage />, { path: "/backups/:slug", route: "/backups/biznesradar" });
+    expect(await screen.findByText("Drill: hech qachon")).toBeInTheDocument();
+    expect(screen.getByText("Hali drill o'tkazilmagan.")).toBeInTheDocument();
+  });
+
+  it("tarixni davomiylik va natija bilan chizadi", async () => {
+    const drill = { every_days: 90, last: drillRow(), last_success_days: 8, never: false, overdue: false };
+    mockFetch({ "GET /api/v1/backups/biznesradar": { body: { ...item({ drill }), runs: [], size_median_7: null, size_ratio: null, size_anomaly: false, drills: [drillRow()] } } });
+    renderPage(<BackupPage />, { path: "/backups/:slug", route: "/backups/biznesradar" });
+    const row = await screen.findByTestId("drill-row");
+    expect(within(row).getByText("Muvaffaqiyatli")).toBeInTheDocument();
+    expect(within(row).getByText("14 daq 20 s")).toBeInTheDocument();
+    expect(screen.getByText("Drill: 8 kun oldin")).toBeInTheDocument();
+  });
+
+  it("formani yuboradi va tanani to'g'ri shakllantiradi", async () => {
+    const mock = mockFetch({
+      "GET /api/v1/backups/biznesradar": { body: { ...item(), runs: [], size_median_7: null, size_ratio: null, size_anomaly: false, drills: [] } },
+      "POST /api/v1/backups/drills": { status: 201, body: drillRow() },
+    });
+    renderPage(<BackupPage />, { path: "/backups/:slug", route: "/backups/biznesradar" });
+    await userEvent.click(await screen.findByRole("button", { name: "Drill natijasini kiritish" }));
+    await userEvent.type(screen.getByLabelText("Tiklangan zaxira fayli"), "BiznesRadar-1.sql.gz");
+    await userEvent.type(screen.getByLabelText("Davomiylik (soniya)"), "840");
+    await userEvent.click(screen.getByRole("button", { name: "Saqlash" }));
+    const post = await vi.waitFor(() => {
+      const c = mock.calls.find((x) => x.init.method === "POST");
+      if (!c) throw new Error("POST yo'q");
+      return c;
+    });
+    const body = JSON.parse(String(post.init.body));
+    expect(body).toMatchObject({ project: "biznesradar", backup_file: "BiznesRadar-1.sql.gz", duration_s: 840, result: "success", tables_count: null });
+  });
+
+  it("fayl nomisiz yubormaydi va xatoni ko'rsatadi", async () => {
+    const mock = mockFetch({ "GET /api/v1/backups/biznesradar": { body: { ...item(), runs: [], size_median_7: null, size_ratio: null, size_anomaly: false, drills: [] } } });
+    renderPage(<BackupPage />, { path: "/backups/:slug", route: "/backups/biznesradar" });
+    await userEvent.click(await screen.findByRole("button", { name: "Drill natijasini kiritish" }));
+    await userEvent.click(screen.getByRole("button", { name: "Saqlash" }));
+    expect(await screen.findByText("Zaxira fayli nomini kiriting.")).toBeInTheDocument();
+    expect(mock.calls.some((c) => c.init.method === "POST")).toBe(false);
+  });
+
+  it("viewer uchun kiritish tugmasi yo'q", async () => {
+    mockFetch({ "GET /api/v1/backups/biznesradar": { body: { ...item(), runs: [], size_median_7: null, size_ratio: null, size_anomaly: false, drills: [] } } });
+    renderPage(<BackupPage />, { path: "/backups/:slug", route: "/backups/biznesradar", me: { ...ME, role: "viewer" } });
+    await screen.findByText("Drill: hech qachon");
+    expect(screen.queryByRole("button", { name: "Drill natijasini kiritish" })).not.toBeInTheDocument();
   });
 });

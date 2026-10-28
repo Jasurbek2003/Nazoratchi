@@ -256,9 +256,36 @@ export interface BackupItem {
   newest_age_seconds: Record<string, number>;
   offsite_configured: boolean | null;
   data_seen_at: string | null;
+  drill: DrillSummary;
+}
+
+export type DrillResult = "success" | "partial" | "failed";
+
+export interface Drill {
+  id: string;
+  project: string;
+  performed_at: string;
+  performed_by: string | null;
+  backup_file: string;
+  backup_age_h: number | null;
+  duration_s: number | null;
+  tables_count: number | null;
+  rows_count: number | null;
+  result: DrillResult;
+  notes: string;
+}
+
+/** Karta/jadvaldagi drill holati (R-117: "hech qachon" aniq ko'rinadi). */
+export interface DrillSummary {
+  every_days: number;
+  last: Drill | null;
+  last_success_days: number | null;
+  never: boolean;
+  overdue: boolean;
 }
 
 export interface BackupDetail extends BackupItem {
+  drills: Drill[];
   runs: { finished_at: string; size_bytes: number | null }[];
   size_median_7: number | null;
   size_ratio: number | null;

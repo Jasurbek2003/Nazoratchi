@@ -5,6 +5,8 @@ import type {
   AlertInstance,
   AlertRule,
   BackupDetail,
+  Drill,
+  DrillResult,
   BackupItem,
   DnsInfo,
   Domain,
@@ -332,6 +334,29 @@ export function useBackups() {
     queryFn: async () => (await api.get<ServerEnvelope<BackupItem>>("backups/")).items,
     staleTime: LIST_STALE_MS,
     refetchInterval: 60_000,
+  });
+}
+
+export interface DrillInput {
+  project: string;
+  performed_at: string;
+  backup_file: string;
+  backup_age_h?: number | null;
+  duration_s?: number | null;
+  tables_count?: number | null;
+  rows_count?: number | null;
+  result: DrillResult;
+  notes?: string;
+}
+
+export function useCreateDrill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: DrillInput) => api.post<Drill>("backups/drills", body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["backups"] });
+      void qc.invalidateQueries({ queryKey: ["backup"] });
+    },
   });
 }
 

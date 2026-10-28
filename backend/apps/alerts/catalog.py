@@ -190,6 +190,21 @@ BUILT_IN: list[dict[str, Any]] = [
         "runbook_key": "RB-033", "runbook_hint": "appctl.conf da OFFSITE ni to'ldiring (S-00 dagi rrsync papkasi): zaxira faqat shu serverda",
     },
     {
+        "key": "AL-081", "name": "Restore drill muddati yaqin", "scope": {"type": "backup"}, "for_seconds": 0, "severity": "info",
+        "condition": {"type": "state", "source": "drill", "field": "due_soon", "equals": True},
+        "runbook_key": "RB-034", "runbook_hint": "zaxirani vaqtinchalik muhitda tiklab ko'ring (TZ 10.8) va natijani zaxira kartasiga kiriting",
+    },
+    {
+        "key": "AL-082", "name": "Restore drill muddati o'tdi", "scope": {"type": "backup"}, "for_seconds": 0, "severity": "warning",
+        "condition": {"type": "state", "source": "drill", "field": "overdue", "equals": True},
+        "runbook_key": "RB-034", "runbook_hint": "tiklash sinalmagan zaxira ishonchsiz: drill o'tkazing va natijani kartaga kiriting",
+    },
+    {
+        "key": "AL-083", "name": "Restore drill muvaffaqiyatsiz", "scope": {"type": "backup"}, "for_seconds": 0, "severity": "high",
+        "condition": {"type": "state", "source": "drill", "field": "failed", "equals": True},
+        "runbook_key": "RB-034", "runbook_hint": "zaxira tiklanmayapti: sababni toping (fayl buzuq, versiya mos emas) va yangi zaxira bilan qayta sinang",
+    },
+    {
         "key": "AL-090", "name": "Nazoratchi o'z zaxirasi eskirdi", "scope": {"type": "system"}, "for_seconds": 0, "severity": "high",
         "condition": {"type": "state", "source": "self_backup", "field": "age_hours_gt", "equals": 30},
         "runbook_key": "RB-044", "runbook_hint": "`manage.py self_backup` ni qo'lda ishga tushiring; owner-backup kanali, bot va age kalitini tekshiring",

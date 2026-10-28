@@ -434,3 +434,92 @@ def test_seed_loads_backup_policy() -> None:
     assert Project.objects.get(slug="avlo_site").backup == {"expect_daily": False}
     assert Project.objects.get(slug="Matnchi").backup == {}
     assert UTC is not None
+
+
+# ---------------------------------------------------------------- restore drill alertlari (AL-081..083)
+def drill(p: Project, *, days_ago: float, result: str = "success", notes: str = "") -> None:
+    from apps.backups.models import RestoreDrill
+
+    RestoreDrill.objects.create(
+        project=p,
+        performed_at=T0 - timedelta(days=days_ago),
+        backup_file="x.sql.gz",
+        result=result,
+        notes=notes,
+    )
+
+
+def firing_keys() -> set[str]:
+    return {a.rule.key for a in AlertInstance.objects.filter(state="firing").select_related("rule")}
+
+
+def test_never_drilled_is_overdue_but_not_due_soon() -> None:
+    only("AL-081", "AL-082", "AL-083")
+    channel()
+    s = new_server()
+    project("BiznesRadar", s)
+    run_cycle(T0)
+    assert firing_keys() == {"AL-082"}
+    inst = AlertInstance.objects.get(rule__key="AL-082")
+    assert inst.rule.severity == "warning" and "hech qachon" in inst.detail
+
+
+@pytest.mark.parametrize(
+    ("days_ago", "expected"),
+    [(10, set()), (80, {"AL-081"}), (90, {"AL-081"}), (91, {"AL-082"}), (200, {"AL-082"})],
+)
+def test_drill_age_thresholds(days_ago: int, expected: set[str]) -> None:
+    only("AL-081", "AL-082", "AL-083")
+    channel()
+    s = new_server()
+    drill(project("BiznesRadar", s), days_ago=days_ago)
+    run_cycle(T0)
+    assert firing_keys() == expected
+
+
+def test_custom_drill_interval_from_policy() -> None:
+    only("AL-081", "AL-082")
+    channel()
+    s = new_server()
+    p = project("BiznesRadar", s)
+    p.backup = {**p.backup, "drill_every_days": 30}
+    p.save()
+    drill(p, days_ago=40)
+    run_cycle(T0)
+    assert firing_keys() == {"AL-082"}
+
+
+def test_failed_drill_fires_high_and_resolves_after_new_success() -> None:
+    only("AL-083")
+    channel()
+    s = new_server()
+    p = project("BiznesRadar", s)
+    drill(p, days_ago=2, result="failed", notes="pg_restore: xato")
+    run_cycle(T0)
+    inst = AlertInstance.objects.get()
+    assert inst.state == "firing" and inst.rule.severity == "high" and "pg_restore" in inst.detail
+    drill(p, days_ago=0, result="success")
+    run_cycle(T0 + timedelta(minutes=1))
+    run_cycle(T0 + timedelta(minutes=3))
+    assert Incident.objects.get().status == "resolved"
+
+
+def test_failed_drill_does_not_reset_overdue_timer() -> None:
+    only("AL-082", "AL-083")
+    channel()
+    s = new_server()
+    p = project("BiznesRadar", s)
+    drill(p, days_ago=120, result="success")
+    drill(p, days_ago=1, result="failed")
+    run_cycle(T0)
+    assert firing_keys() == {"AL-082", "AL-083"}
+
+
+def test_drill_alerts_skip_projects_without_backup_policy_or_not_moved() -> None:
+    only("AL-082")
+    channel()
+    s = new_server()
+    project("A", s, daily=False)
+    project("B", s, moved=False)
+    run_cycle(T0)
+    assert firing_keys() == set()

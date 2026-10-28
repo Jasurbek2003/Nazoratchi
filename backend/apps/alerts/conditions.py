@@ -50,6 +50,8 @@ STATE_SOURCES: dict[str, dict[str, type]] = {
     "dns": {"mismatch": bool, "retired": bool},  # S5: DNS tekshiruvi
     # S6: loyiha zaxirasi (agent `backup_*` metrikalari + BackupRun tarixi); faqat expect_daily loyihalar
     "backup": {"age_hours_gt": int, "last_failed": bool, "size_small": bool, "size_large": bool},
+    # F1 S10: restore drill muddati va natijasi (AL-081..083); faqat expect_daily loyihalar
+    "drill": {"due_soon": bool, "overdue": bool, "failed": bool},
     "self_backup": {
         "age_hours_gt": int,
         "failed": bool,
@@ -572,6 +574,8 @@ def _state_other(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
         out.extend(_state_dns(cond, ctx))
     elif source == "backup":
         out.extend(_state_backups(cond, ctx))
+    elif source == "drill":
+        out.extend(_state_drills(cond, ctx))
     elif source == "self_backup":
         out.append(_state_self_backup(cond, ctx))
     else:  # fleet
@@ -698,6 +702,70 @@ def _state_backups(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
                 value,
                 detail,
                 labels,
+            )
+        )
+    return out
+
+
+DRILL_WARN_DAYS = 14  # muddatdan shuncha kun oldin AL-081 (info)
+
+
+def _state_drills(cond: dict[str, Any], ctx: Ctx) -> list[Subject]:
+    """Restore drill (TZ 10.8.5): muddat yaqin / o'tdi / oxirgisi muvaffaqiyatsiz. Faqat faol, ko'chirilgan
+    `expect_daily` loyihalar. "Hech qachon" drill o'tkazilmagan loyiha muddati o'tgan hisoblanadi (R-117).
+    AL-081 faqat muddat hali o'tmagan, lekin yaqin bo'lganda yonadi (o'tgandan keyin AL-082 gapiradi)."""
+    from apps.backups.models import RestoreDrill
+
+    projects = [
+        p
+        for p in Project.objects.filter(status=Project.Status.ACTIVE, moved=True)
+        if (p.backup or {}).get("expect_daily")
+    ]
+    last: dict[Any, Any] = {}
+    last_ok: dict[Any, Any] = {}
+    for d in RestoreDrill.objects.filter(project__in=projects).order_by("-performed_at"):
+        last.setdefault(d.project_id, d)
+        if d.result == RestoreDrill.Result.SUCCESS:
+            last_ok.setdefault(d.project_id, d)
+    out = []
+    field_ = cond["field"]
+    for project in projects:
+        every = int((project.backup or {}).get("drill_every_days") or 90)
+        ok = last_ok.get(project.pk)
+        latest = last.get(project.pk)
+        days = (ctx.now - ok.performed_at).days if ok else None
+        firing: bool
+        if field_ == "failed":
+            firing = latest is not None and latest.result == RestoreDrill.Result.FAILED
+            detail = (
+                f"oxirgi drill muvaffaqiyatsiz ({latest.performed_at:%Y-%m-%d}): {latest.notes[:150]}"
+                if firing and latest is not None
+                else "oxirgi drill xatosiz"
+            )
+        elif field_ == "overdue":
+            firing = days is None or days > every
+            detail = (
+                "restore drill hech qachon o'tkazilmagan"
+                if days is None
+                else f"oxirgi muvaffaqiyatli drill {days} kun oldin (davriylik {every} kun)"
+            )
+        else:  # due_soon
+            firing = days is not None and every - DRILL_WARN_DAYS < days <= every
+            detail = (
+                "restore drill hech qachon o'tkazilmagan"
+                if days is None
+                else f"oxirgi muvaffaqiyatli drill {days} kun oldin; muddat {every} kun"
+            )
+        out.append(
+            Subject(
+                "backup",
+                project.slug,
+                project.slug,
+                f"project:{project.pk}",
+                firing,
+                None if days is None else float(days),
+                detail,
+                _project_labels(project, ""),
             )
         )
     return out

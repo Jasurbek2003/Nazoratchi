@@ -205,7 +205,9 @@ Eslatmalar:
 - Portlar faqat `127.0.0.1` ga (Docker nashri `ufw` ni chetlab o'tadi).
 - `evaluator` va `prober` **bitta nusxada** ishlaydi (`replicas` yo'q). Ikkinchi nusxa
   tasodifan ishga tushsa, takroriy alert bo'lmasligi uchun baza darajasidagi `advisory lock`
-  bilan "leader" tanlanadi (6.2).
+  bilan "leader" tanlanadi (6.2). Amalda: `apps/core/leader.py`, alohida ulanishda `pg_try_advisory_lock`;
+  leader bo'lmagan nusxa har davrda qayta urinadi, leader o'lsa qulf o'zi bo'shaydi. Django ulanishi
+  `connect_timeout=5` bilan: baza javob bermasa so'rovlar osilib qolmaydi.
 - `web`, `worker`, `evaluator`, `prober` bir image'dan, buyruqlari farqli.
 - Migratsiyalar `deploy` paytida alohida bir martalik buyruq bilan (15.7).
 

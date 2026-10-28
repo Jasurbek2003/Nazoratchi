@@ -284,8 +284,14 @@ quyidagilar bajarilsa:
 
 ## 16.9. Sinov ma'lumotlari generatori
 
-Generator — alohida kichik dastur (`tools/simulator`), konfiguratsiya fayli bo'yicha virtual
+Generator — alohida kichik dastur (`tools/simulator`, F1 S10 da `simulate.py`: stdlib, token ro'yxati bo'yicha
+virtual agentlar, p50/p95/p99 va mezon tekshiruvi), konfiguratsiya fayli bo'yicha virtual
 hostlarni yaratadi.
+
+**Holat (2026-10-28, F1 S10):** xavfsizlik, chaos va unumdorlik testlarining bajarilgan va kutilayotgan qismi
+`docs/sinov/B13-natijalar.md` da. Avtomatik: `backend/tests/test_security.py` (T-S-04..08, 14; S-09, S-10),
+`backend/tests/test_chaos.py` (T-C-02, 14, 17); real: T-C-01 va T-P-01 (qisqartirilgan). Haqiqiy serverni talab
+qiladigan bandlar (ZAP, testssl, T-C-03..13, T-P-02..10) UAT oldidan S-01 da bajariladi.
 
 | Naqsh | Tavsifi |
 |---|---|

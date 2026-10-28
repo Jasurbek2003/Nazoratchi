@@ -42,7 +42,7 @@ Barcha xatolar bir xil shaklda:
 | 400 | `bad_request`, `validation_error` | So'rov noto'g'ri / maydon xato |
 | 401 | `unauthenticated`, `invalid_token`, `token_revoked` | Kirmagan yoki token noto'g'ri |
 | 403 | `forbidden`, `csrf_failed` | Ruxsat yo'q |
-| 404 | `not_found` | Obyekt yo'q yoki ko'rishga ruxsat yo'q (mavjudligini oshkor qilmaydi) |
+| 404 | `not_found` | Obyekt yo'q yoki ko'rishga ruxsat yo'q (mavjudligini oshkor qilmaydi); noma'lum `/api/`, `/ingest/`, `/agent/` yo'llari ham shu formatda |
 | 409 | `conflict`, `duplicate` | Takroriy nom, joriy holat bilan nomuvofiqlik |
 | 410 | `gone`, `enroll_token_expired` | Muddati o'tgan |
 | 413 | `payload_too_large` | Hajm chegarasi (ingest: 1 MB) |

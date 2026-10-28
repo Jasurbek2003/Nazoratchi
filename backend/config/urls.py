@@ -12,3 +12,6 @@ urlpatterns = [
     path("", include("apps.ingest.urls")),
     path("", include("apps.metrics.urls")),
 ]
+
+handler404 = "apps.core.views.not_found"
+handler500 = "apps.core.views.server_error"

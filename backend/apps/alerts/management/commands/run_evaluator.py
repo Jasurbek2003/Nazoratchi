@@ -5,6 +5,7 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandParser
 
 from apps.alerts.engine import run_cycle
+from apps.core.leader import Leader
 from apps.core.watchdog import Pinger
 
 logger = logging.getLogger(__name__)
@@ -21,8 +22,13 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **options: Any) -> None:
         pinger = Pinger()
+        leader = Leader("evaluator")
         while True:
             started = time.monotonic()
+            if not options["once"] and not leader.ensure():
+                # Boshqa nusxa leader (yoki baza yo'q): takroriy alert chiqmasligi uchun kutamiz.
+                time.sleep(max(0.0, options["interval"] - (time.monotonic() - started)))
+                continue
             try:
                 stats = run_cycle()
                 self.stdout.write(f"davr: {stats}")

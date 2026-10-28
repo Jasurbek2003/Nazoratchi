@@ -1,10 +1,11 @@
 import logging
 
 from django.db import DatabaseError, connection
-from django.http import HttpRequest, JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET
 
 from .health import readiness
+from .http import error_response
 
 logger = logging.getLogger(__name__)
 
@@ -31,3 +32,15 @@ def readyz(request: HttpRequest) -> JsonResponse:
         "checks": {c.name: {"ok": c.ok, "detail": c.detail} for c in checks},
     }
     return JsonResponse(body, status=200 if ready else 503)
+
+
+def not_found(request: HttpRequest, exception: Exception | None = None) -> HttpResponse:
+    """404: API, ingest va agent yo'llari uchun yagona JSON xato formati (TZ 9.1.1); qolganlari oddiy matn."""
+    if request.path.startswith(("/api/", "/ingest/", "/agent/")):
+        return error_response("not_found", "Topilmadi.", 404)
+    return HttpResponse("Topilmadi.", status=404, content_type="text/plain; charset=utf-8")
+
+
+def server_error(request: HttpRequest) -> HttpResponse:
+    """500: tafsilotsiz JSON (stek iz mijozga chiqmaydi, TZ 14)."""
+    return error_response("internal_error", "Ichki xato.", 500)

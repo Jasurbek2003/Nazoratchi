@@ -106,6 +106,8 @@ DATABASES = {
         "PASSWORD": env("DB_PASSWORD"),
         "HOST": env("DB_HOST", "localhost"),
         "PORT": env("DB_PORT", "5432"),
+        # Baza javob bermasa /healthz osilib qolmasin (T-C-01): ulanish 5 s dan keyin uziladi.
+        "OPTIONS": {"connect_timeout": 5},
     }
 }
 

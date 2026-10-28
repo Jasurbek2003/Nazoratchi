@@ -1,0 +1,17 @@
+# Repo ildizi contexti (backend va frontend image'lari). Faqat kerakli narsa yuboriladi.
+.git
+.github
+.idea
+.pytest_cache
+**/.venv
+**/.mypy_cache
+**/.ruff_cache
+**/__pycache__
+**/node_modules
+**/dist
+agent
+prototype
+landing
+docs
+watchdog
+backend/tests

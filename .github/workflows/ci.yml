@@ -154,7 +154,8 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
-          context: backend
+          context: .
+          file: backend/Dockerfile
           push: false
           load: true
           tags: nazoratchi-backend:ci
@@ -173,6 +174,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose -f deploy/docker-compose.dev.yml config --quiet
+      - name: prod compose (.env.example qiymatlari bilan)
+        working-directory: deploy
+        run: |
+          sed -e 's/^SECRET_KEY=.*/SECRET_KEY=x/' -e 's/^DB_PASSWORD=.*/DB_PASSWORD=x/'               -e 's/^NAZORATCHI_MASTER_KEY=.*/NAZORATCHI_MASTER_KEY=x/' -e 's/^GHCR_OWNER=.*/GHCR_OWNER=ci/'               ../.env.example > .env
+          docker compose --env-file .env -f docker-compose.yml config --quiet
+      - name: shellcheck (install.sh, bootstrap.sh)
+        run: shellcheck deploy/agent/install.sh deploy/bootstrap.sh deploy/agent/test.sh deploy/agent/test/run-in-container.sh
+      - name: nginx konfiguratsiyasi
+        run: |
+          sudo apt-get install -y -qq nginx >/dev/null
+          echo "proxy_set_header Host \$host;" | sudo tee /etc/nginx/proxy_params >/dev/null
+          NAZORATCHI_DOMAIN=nazoratchi.example.uz envsubst "\${NAZORATCHI_DOMAIN}" < deploy/nginx/nazoratchi.conf.template | sudo tee /etc/nginx/conf.d/nazoratchi.conf >/dev/null
+          sudo nginx -t
 
-# F1 da qo'shiladi:
-# build (image'lar, SBOM), sign/release (minisign), deploy-prod. Reja: docs/TZ/15-deploy.md 15.10.
+  frontend-image:
+    name: frontend image (build)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: false
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+  agent-install-test:
+    name: install.sh (Debian konteynerida)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash deploy/agent/test.sh
+
+# Release (image push, agent imzolash): .github/workflows/release.yml

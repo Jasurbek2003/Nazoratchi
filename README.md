@@ -37,7 +37,28 @@ uv run python manage.py runserver                        # http://127.0.0.1:8000
 
 Dev sozlamalari (`config.settings.dev`) standart qiymatlarga ega; prod uchun `.env.example` ga qarang.
 
+## Frontend
+
+```bash
+cd frontend && npm ci && npm run dev    # http://localhost:5173 (/api va /healthz ni backend 127.0.0.1:8000 ga proksilaydi)
+npm run lint && npm run typecheck && npm test && npm run build
+```
+
+## Prod'ga o'rnatish
+
+1. Core serverini tayyorlang: [TZ 15.2](docs/TZ/15-deploy.md). `deploy/docker-compose.yml`, `deploy/bootstrap.sh` va
+   `.env.example` (nusxa `.env`, rejim 0600) ni server papkasiga qo'ying.
+2. `bash bootstrap.sh <owner-login>` — image'larni tortadi, migratsiya qiladi, Owner yaratadi, servislarni ko'taradi.
+3. Host nginx: `deploy/nginx/nazoratchi.conf.template` (`envsubst`), so'ng `certbot --nginx`.
+4. Watchdog (boshqa serverda): [`watchdog/README.md`](watchdog/README.md). Agent: panel bergan
+   `curl -fsSL https://<core>/install.sh | sudo NAZORATCHI_ENROLL_TOKEN=... bash`.
+5. Muammo bo'lsa: [`docs/runbooks/`](docs/runbooks/README.md).
+
+Image'lar: `docker build -f backend/Dockerfile .` va `docker build -f frontend/Dockerfile .` (context — repo ildizi).
+Release: `v*` tegi `.github/workflows/release.yml` ni ishga tushiradi (ghcr.io image'lari, minisign bilan imzolangan agent).
+
 ## CI
 
-`.github/workflows/ci.yml`: backend va prototip agent (ruff, mypy, pytest, qamrov ≥ 70%),
-xavfsizlik (`pip-audit`), `compose` konfiguratsiyasi. Agent va frontend ishlari F1 da qo'shiladi.
+`.github/workflows/ci.yml`: backend, Go agent, frontend (lint, typecheck, test, build), prototip agent, xavfsizlik
+(`pip-audit`, `govulncheck`), image build'lar, prod `compose`, shellcheck, nginx `-t` va `install.sh` funksional testi
+(Debian konteyneri).

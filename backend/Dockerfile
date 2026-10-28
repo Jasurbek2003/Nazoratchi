@@ -1,11 +1,12 @@
 # syntax=docker/dockerfile:1
-# Nazoratchi backend image'i (TZ 15.4). web/worker/evaluator/prober bir image'dan, buyruqlari compose'da.
+# Nazoratchi backend image'i (TZ 15.4). web/evaluator/prober/notifier bir image'dan, buyruqlari compose'da.
+# Build context — REPO ILDIZI (install.sh va seed shu yerdan olinadi): docker build -f backend/Dockerfile .
 
 FROM python:3.13-slim-bookworm AS build
 COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 WORKDIR /app
-COPY pyproject.toml uv.lock ./
+COPY backend/pyproject.toml backend/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
@@ -17,9 +18,12 @@ ENV PATH="/app/.venv/bin:$PATH" \
 RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin nazoratchi
 WORKDIR /app
 COPY --from=build /app/.venv /app/.venv
-COPY manage.py ./
-COPY apps ./apps
-COPY config ./config
+COPY backend/manage.py ./
+COPY backend/apps ./apps
+COPY backend/config ./config
+# Repodagi joylashuvga mos (BASE_DIR.parent): core /install.sh ni shu yerdan beradi, seed_registry --file seed/...
+COPY deploy/agent/install.sh /deploy/agent/install.sh
+COPY seed /seed
 USER nazoratchi
 EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 \

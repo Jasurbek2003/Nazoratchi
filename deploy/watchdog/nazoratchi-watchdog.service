@@ -1,0 +1,31 @@
+# S-01 serverda: /etc/systemd/system/nazoratchi-watchdog.service  (TZ 15.7, 9-qadam; watchdog/README.md)
+[Unit]
+Description=Nazoratchi watchdog (core tirikligini tashqaridan tekshirish)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=nazoratchi-watchdog
+Group=nazoratchi-watchdog
+EnvironmentFile=/etc/nazoratchi-watchdog.env
+WorkingDirectory=/opt/nazoratchi-watchdog
+ExecStart=/usr/bin/python3 -m nazoratchi_watchdog
+StateDirectory=nazoratchi-watchdog
+Restart=always
+RestartSec=5
+MemoryMax=64M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+CapabilityBoundingSet=
+LockPersonality=true
+ReadWritePaths=/var/lib/nazoratchi-watchdog
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,89 @@
+name: release
+
+# Teg `v*` (masalan v1.0.0) qo'yilganda: image'lar ghcr.io ga, agent binarlari imzolanib GitHub Release ga (TZ 15.10, 7.7).
+# Sirlar: MINISIGN_SECRET_KEY (minisign maxfiy kalit fayli matni), MINISIGN_PASSWORD (parol; kalit parolsiz bo'lsa bo'sh).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  images:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        run: |
+          echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          sbom: true
+          provenance: true
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.owner }}/nazoratchi-backend:${{ steps.meta.outputs.version }}
+            ghcr.io/${{ steps.meta.outputs.owner }}/nazoratchi-backend:latest
+          cache-from: type=gha
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: true
+          sbom: true
+          provenance: true
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.owner }}/nazoratchi-frontend:${{ steps.meta.outputs.version }}
+            ghcr.io/${{ steps.meta.outputs.owner }}/nazoratchi-frontend:latest
+          cache-from: type=gha,scope=frontend
+
+  agent:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+      - name: Binarlarni yig'ish (statik, amd64 va arm64)
+        working-directory: agent
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p ../dist
+          for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath \
+              -ldflags "-s -w -X main.version=$VERSION" \
+              -o ../dist/nazoratchi-agent-$arch ./cmd/nazoratchi-agent
+          done
+      - name: SHA256SUMS va minisign imzosi
+        working-directory: dist
+        env:
+          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y -qq minisign >/dev/null
+          sha256sum nazoratchi-agent-amd64 nazoratchi-agent-arm64 > SHA256SUMS
+          umask 077
+          printf '%s\n' "$MINISIGN_SECRET_KEY" > "$RUNNER_TEMP/minisign.key"
+          printf '%s\n' "$MINISIGN_PASSWORD" | minisign -S -s "$RUNNER_TEMP/minisign.key" -m SHA256SUMS -x SHA256SUMS.minisig
+          rm -f "$RUNNER_TEMP/minisign.key"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-dist
+          path: dist/
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --generate-notes --verify-tag

@@ -1,0 +1,87 @@
+# Nazoratchi prod (TZ 15.4). Joylashuv: /opt/applications/projects/Nazoratchi/docker-compose.yml
+# Ishga tushirish: docker compose --env-file .env up -d   (bootstrap: deploy/bootstrap.sh)
+name: nazoratchi
+
+x-app: &app
+  image: ghcr.io/${GHCR_OWNER}/nazoratchi-backend:${NAZORATCHI_VERSION}
+  env_file: .env
+  restart: unless-stopped
+  depends_on:
+    db: { condition: service_healthy }
+    redis: { condition: service_healthy }
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  db:
+    image: timescale/timescaledb:2.17.2-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - nazoratchi_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    shm_size: 256mb
+    command: >
+      postgres -c shared_buffers=512MB -c effective_cache_size=1536MB
+               -c max_connections=60 -c work_mem=16MB
+               -c timescaledb.max_background_workers=8
+               -c shared_preload_libraries=timescaledb
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  web:
+    <<: *app
+    command: ["uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    ports: ["127.0.0.1:8040:8000"]
+    volumes:
+      - ${AGENT_DIST_HOST_DIR:-./agent-dist}:/data/agent:ro   # agent binarlari, SHA256SUMS, SHA256SUMS.minisig
+    # image'dagi HEALTHCHECK (/healthz) ishlaydi
+
+  # evaluator va prober BITTA nusxada (advisory lock bilan himoyalangan, TZ 6.2)
+  evaluator:
+    <<: *app
+    command: ["python", "manage.py", "run_evaluator", "--interval", "15"]
+    healthcheck: { disable: true }
+
+  prober:
+    <<: *app
+    command: ["python", "manage.py", "run_prober"]
+    healthcheck: { disable: true }
+
+  notifier:
+    <<: *app
+    command: ["python", "manage.py", "notify_worker"]
+    healthcheck: { disable: true }
+
+  # Kunlik o'z zaxirasi (age + Telegram, FR-SYS-003). NAZORATCHI_BACKUP_AGE_PUBKEY bo'sh bo'lsa AL-091 xabar beradi.
+  self-backup:
+    <<: *app
+    command: ["python", "manage.py", "self_backup", "--loop", "--hour", "3"]
+    healthcheck: { disable: true }
+
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/nazoratchi-frontend:${NAZORATCHI_VERSION}
+    restart: unless-stopped
+    ports: ["127.0.0.1:3040:8080"]
+
+volumes:
+  nazoratchi_pgdata:

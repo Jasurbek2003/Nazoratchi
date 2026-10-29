@@ -3,12 +3,14 @@
 To'liq CRUD (PATCH, pauza, arxiv) B2 da.
 """
 
+from datetime import timedelta
 from typing import Any
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.http import HttpResponse
+from django.utils import timezone
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -78,6 +80,24 @@ class ServerListView(APIView):
         )
 
 
+CLOCK_SKEW_FRESH = timedelta(minutes=5)
+
+
+def _clock_skew(server: Server) -> float | None:
+    """Agent o'lchagan soat farqi (core - agent, soniya). Yangi qiymat bo'lmasa None (eskirgan son yolg'on belgi beradi)."""
+    from apps.metrics.models import SeriesLatest
+
+    return (
+        SeriesLatest.objects.filter(
+            series__server=server,
+            series__name="agent_clock_skew_seconds",
+            time__gte=timezone.now() - CLOCK_SKEW_FRESH,
+        )
+        .values_list("value", flat=True)
+        .first()
+    )
+
+
 class ServerDetailView(APIView):
     def get_permissions(self) -> list[Any]:
         classes: list[type[BasePermission]] = [IsAuthenticated]
@@ -96,7 +116,13 @@ class ServerDetailView(APIView):
             .exclude(status="resolved")
             .count()
         )
-        return Response({**ServerSerializer(server).data, "open_incidents": open_incidents})
+        return Response(
+            {
+                **ServerSerializer(server).data,
+                "open_incidents": open_incidents,
+                "clock_skew_seconds": _clock_skew(server),
+            }
+        )
 
     def patch(self, request: Request, pk: str) -> HttpResponse:
         server = Server.objects.filter(pk=pk).exclude(status=Server.Status.ARCHIVED).first()

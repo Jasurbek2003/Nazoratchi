@@ -222,3 +222,76 @@ def test_archived_or_missing_server_is_404(release: Path, owner: Client) -> None
     assert call(owner, "post", url(server)).status_code == 404
     missing = "/api/v1/servers/00000000-0000-0000-0000-000000000000/agent-update"
     assert call(owner, "post", missing).status_code == 404
+
+
+# ---- FR-AGT-011: eskirgan agent belgisi ----
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("version", "outdated"),
+    [
+        ("nazoratchi-agent/1.0.0", True),
+        ("nazoratchi-agent/1.2.0", False),
+        (
+            "nazoratchi-agent/1.3.0",
+            False,
+        ),  # core'dagi relizdan yangi (masalan, ertaroq o'rnatilgan)
+        ("nazoratchi-agent/dev", None),  # dev build: solishtirib bo'lmaydi
+        ("", None),
+    ],
+)
+def test_outdated_flag(release: Path, version: str, outdated: bool | None) -> None:
+    host(version=version)
+    viewer = client_for("kuzatuvchi", "viewer")
+    items = viewer.get("/api/v1/servers/").json()["items"]
+    assert items[0]["agent_outdated"] is outdated
+    assert items[0]["agent_latest"] == "1.2.0"
+
+
+@pytest.mark.django_db
+def test_outdated_is_unknown_without_release_files(tmp_path: Path, settings: Any) -> None:
+    settings.AGENT_DIST_DIR = str(tmp_path)  # VERSION yo'q
+    host()
+    items = client_for("kuzatuvchi", "viewer").get("/api/v1/servers/").json()["items"]
+    assert items[0]["agent_outdated"] is None and items[0]["agent_latest"] is None
+
+
+# ---- FR-AGT-012: soat farqi ----
+
+
+def _set_skew(server: Server, value: float, age_s: int = 0) -> None:
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.metrics.models import Series, SeriesLatest
+
+    series = Series.objects.create(
+        server=server, name="agent_clock_skew_seconds", labels={}, labels_hash="x"
+    )
+    SeriesLatest.objects.create(
+        series=series, time=timezone.now() - timedelta(seconds=age_s), value=value
+    )
+
+
+@pytest.mark.django_db
+def test_clock_skew_in_detail_only_when_fresh(release: Path) -> None:
+    server, _ = host()
+    viewer = client_for("kuzatuvchi", "viewer")
+    detail = f"/api/v1/servers/{server.pk}"
+    assert viewer.get(detail).json()["clock_skew_seconds"] is None  # o'lchov yo'q
+
+    _set_skew(server, 12.5)
+    assert viewer.get(detail).json()["clock_skew_seconds"] == 12.5
+
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.metrics.models import SeriesLatest
+
+    SeriesLatest.objects.update(time=timezone.now() - timedelta(hours=1))
+    assert (
+        viewer.get(detail).json()["clock_skew_seconds"] is None
+    )  # eskirgan qiymat "belgi" bermaydi

@@ -11,6 +11,8 @@ const LABELS: Record<string, string> = {
   virtualization: "Virtualizatsiya",
   cpu_model: "CPU modeli",
   docker_version: "Docker versiyasi",
+  agent_build_time: "Agent yig'ilgan vaqt",
+  go_version: "Go versiyasi (agent)",
 };
 
 export interface FactRow {

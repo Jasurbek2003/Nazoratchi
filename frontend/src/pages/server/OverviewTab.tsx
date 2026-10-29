@@ -7,6 +7,7 @@ import { formatDateTime, formatNumber, formatRate } from "../../lib/format";
 import { flattenFacts } from "../../lib/facts";
 import { extractVitals, serverDisplayStatus } from "../../lib/serverStatus";
 import { hostOf } from "../../lib/summary";
+import { AgentVersion, ClockSkew } from "./AgentVersion";
 import { useNow } from "../../lib/useNow";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -84,7 +85,12 @@ export function OverviewTab({ server, me }: { server: ServerDetail; me: Me }) {
           <Field label="Rol">{server.role || "—"}</Field>
           <Field label="Teglar">{server.tags.length ? server.tags.join(", ") : "—"}</Field>
           <Field label="Oylik narx">{server.monthly_cost_usd ? `${formatNumber(Number(server.monthly_cost_usd), 2)} USD` : "—"}</Field>
-          <Field label="Agent versiyasi">{server.agent_version || "—"}</Field>
+          <Field label="Agent versiyasi">
+            <AgentVersion server={server} role={me.role} />
+          </Field>
+          <Field label="Soat farqi">
+            <ClockSkew seconds={server.clock_skew_seconds} />
+          </Field>
           <Field label="Qo'shilgan">{formatDateTime(server.created_at, me.timezone)}</Field>
           <Field label="Izoh">{server.notes || "—"}</Field>
         </dl>

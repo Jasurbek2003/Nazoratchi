@@ -30,6 +30,12 @@ export interface Server {
   paused_until: string | null;
   pause_reason: string;
   agent_version: string;
+  /** Owner so'ragan nishon versiya (yangilanish jarayonda), aks holda bo'sh. */
+  agent_update_to: string;
+  /** Core'dagi eng yangi agent relizi; reliz fayllari yo'q bo'lsa null. */
+  agent_latest: string | null;
+  /** true: eskirgan; false: yangi; null: noma'lum (dev build yoki reliz yo'q). */
+  agent_outdated: boolean | null;
   facts: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -37,6 +43,8 @@ export interface Server {
 
 export interface ServerDetail extends Server {
   open_incidents: number;
+  /** Agent o'lchagan soat farqi (core - agent, soniya); yangi o'lchov bo'lmasa null. */
+  clock_skew_seconds: number | null;
 }
 
 export interface ServerEnvelope<T> {

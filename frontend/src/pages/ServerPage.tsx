@@ -12,6 +12,7 @@ import { serverDisplayStatus } from "../lib/serverStatus";
 import { hostOf } from "../lib/summary";
 import { useNow } from "../lib/useNow";
 import { ContainersTab } from "./server/ContainersTab";
+import { agentVersionText, OutdatedBadge } from "./server/AgentVersion";
 import { FilesystemsTab } from "./server/FilesystemsTab";
 import { OverviewTab } from "./server/OverviewTab";
 import { PauseControls } from "./server/PauseControls";
@@ -95,7 +96,12 @@ export default function ServerPage() {
             <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-muted">
               <span className="mono">{s.public_ipv4 ?? s.public_ipv6 ?? "IP yo'q"}</span>
               {s.provider && <span>{s.provider}</span>}
-              {s.agent_version && <span>agent {s.agent_version}</span>}
+              {s.agent_version && (
+                <span className="inline-flex items-center gap-2">
+                  agent {agentVersionText(s.agent_version)}
+                  <OutdatedBadge server={s} />
+                </span>
+              )}
               <FreshnessLabel iso={s.last_seen_at} now={now} tz={me.timezone} prefix="oxirgi aloqa: " />
             </p>
           </div>

@@ -214,6 +214,18 @@ export function useServerAction(id: string, action: "pause" | "resume") {
   });
 }
 
+/** Agentni yangilash (FR-AGT-008): so'rash va bekor qilish, faqat owner. */
+export function useAgentUpdate(id: string) {
+  const qc = useQueryClient();
+  const done = () => {
+    void qc.invalidateQueries({ queryKey: keys.server(id) });
+    void qc.invalidateQueries({ queryKey: ["servers"] });
+  };
+  const request = useMutation({ mutationFn: () => api.post<Server>(`servers/${id}/agent-update`, {}), onSuccess: done });
+  const cancel = useMutation({ mutationFn: () => api.delete<Server>(`servers/${id}/agent-update`), onSuccess: done });
+  return { request, cancel };
+}
+
 // ------------------------------------------------------------------ incident va alertlar
 /** Ochiq = open + acknowledged (hal qilinmagan). Ikkita so'rov (backend `status` bitta qiymat oladi). */
 export function useUnresolvedIncidents() {

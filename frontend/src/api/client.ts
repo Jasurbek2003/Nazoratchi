@@ -164,4 +164,5 @@ export const api = {
   get: <T>(path: string, query?: Query, signal?: AbortSignal) => request<T>("GET", path, { query, signal }),
   post: <T>(path: string, body?: unknown, opts: Omit<RequestOptions, "body"> = {}) =>
     request<T>("POST", path, { ...opts, body }),
+  delete: <T>(path: string, opts: Omit<RequestOptions, "body"> = {}) => request<T>("DELETE", path, opts),
 };

@@ -94,7 +94,7 @@ Set-Cookie: __Host-nzr_sid=...; HttpOnly; Secure; SameSite=Lax; Path=/
 |---|---|---|---|
 | GET | `/servers/` | hamma | Ro'yxat (filtr: `status`, `tag`, `q`) |
 | POST | `/servers/` | owner, operator | Yangi server yaratish → enroll tokeni va o'rnatish buyrug'ini qaytaradi |
-| GET | `/servers/{id}` | hamma | Tafsilot: reyestr maydonlari, `facts`, so'nggi qiymatlar, ochiq incidentlar soni |
+| GET | `/servers/{id}` | hamma | Tafsilot: reyestr maydonlari, `facts`, so'nggi qiymatlar, ochiq incidentlar soni, `clock_skew_seconds` (agent o'lchagan soat farqi, 5 daqiqadan eski bo'lsa `null`; FR-AGT-012) |
 | PATCH | `/servers/{id}` | owner, operator | Maydonlarni o'zgartirish |
 | POST | `/servers/{id}/pause` | owner, operator | `{reason, until?}` → pauza (FR-HST-016) |
 | POST | `/servers/{id}/resume` | owner, operator | Pauzani bekor qilish |
@@ -102,6 +102,8 @@ Set-Cookie: __Host-nzr_sid=...; HttpOnly; Secure; SameSite=Lax; Path=/
 | POST | `/servers/{id}/agent-update` | owner | Agentni eng yangi relizga yangilashni so'rash (FR-AGT-008, 7.7.3). `202` + server (`agent_update_to`). `409`: agent versiyasi noma'lum/dev, arxitektura noma'lum, core'da reliz fayllari yo'q yoki agent allaqachon eng yangi |
 | DELETE | `/servers/{id}/agent-update` | owner | So'rovni bekor qilish (`409`, agar so'ralmagan bo'lsa) |
 | GET | `/servers/{id}/events` | hamma | Reboot, fakt o'zgarishi, yangilanish tarixi |
+
+> **Server obyektidagi agent maydonlari (S11, FR-AGT-008/011):** `agent_version` (agent bildirgan), `agent_update_to` (Owner so'ragan nishon, bo'sh bo'lsa so'ralmagan), `agent_latest` (core'dagi `VERSION`, reliz fayllari yo'q bo'lsa `null`), `agent_outdated` (`true` eskirgan, `false` yangi, `null` noma'lum: `dev` build yoki reliz yo'q). Ro'yxatda `VERSION` bir so'rovda bir marta o'qiladi.
 | GET | `/servers/{id}/containers` | hamma | Konteynerlar va oxirgi qiymatlari |
 | GET | `/servers/{id}/services` | hamma | systemd servislar |
 | GET | `/servers/{id}/filesystems` | hamma | Fayl tizimlari, bandlik, bashorat (to'lishga qolgan kun) |

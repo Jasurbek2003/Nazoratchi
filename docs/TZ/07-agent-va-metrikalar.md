@@ -241,7 +241,7 @@ ko'rsatkichi bilan ishlaydi; core mahalliy va offsite natijalarni loyiha nomi bo
 | `agent_queue_files`, `agent_queue_bytes` | gauge | son/bayt | — | Yuborilmagan navbat |
 | `agent_send_failures_total` | counter | son | — | Yuborish xatolari |
 | `agent_series_dropped` | counter | son | — | Kardinallik chegarasidan tashlangan |
-| `agent_clock_skew_seconds` | gauge | s | — | Core javobidagi vaqt bilan farq |
+| `agent_clock_skew_seconds` | gauge | s | — | Core javobidagi `server_time` bilan farq (musbat = core oldinda; tarmoq kechikishi ~0,1 s xatolik beradi). **S11 (FR-AGT-012):** \|farq\| > 5 s bo'lsa agent logga ogohlantirish yozadi (10 daqiqada bir marta, tuzalganda xabar), panel server sahifasida "Soat siljigan" belgisini ko'rsatadi. `chrony`/`timesyncd` holati (FR-HST-013) hali yo'q |
 | `agent_update_rejected_total` | counter | son | — | Imzo/xesh/versiya tekshiruvidan o'tmagan yangilanishlar (14.5.4 `agent_update_rejected`). Alohida hodisa kanali yo'q, shuning uchun hisoblagich sifatida; alert F2 (S13/S14) |
 | `agent_rss_bytes`, `agent_cpu_percent` | gauge | bayt/% | — | Agentning o'z resurs sarfi |
 
@@ -256,6 +256,8 @@ Metrika emas; JSON obyekt. O'zgarganda core voqea (`host_fact_changed`) yozadi.
 | `kernel_running` | `6.8.0-139-generic` | `uname -r` |
 | `kernel_latest_installed` | `6.8.0-147-generic` | `/boot/vmlinuz-*` (eng yuqori versiya) |
 | `arch` | `amd64` | `runtime.GOARCH` |
+| `agent_build_time` | `2026-11-01T10:00:00+00:00` | `-ldflags -X main.buildTime` (reliz commit vaqti; dev build'da yo'q). **S11 (FR-AGT-011)** |
+| `go_version` | `go1.26.10` | `runtime.Version()`. **S11 (FR-AGT-011)** |
 | `cpu_model`, `cpu_count` | `AMD EPYC ...`, `4` | `/proc/cpuinfo` |
 | `mem_total_bytes` | `8321499136` | `/proc/meminfo` |
 | `boot_id` | UUID | `/proc/sys/kernel/random/boot_id` |

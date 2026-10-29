@@ -65,7 +65,9 @@ if [ -z "$ROOT" ]; then
   id nazoratchi >/dev/null 2>&1 \
     || useradd --system --no-create-home --shell /usr/sbin/nologin nazoratchi
   for g in adm systemd-journal; do
-    getent group "$g" >/dev/null 2>&1 && usermod -aG "$g" nazoratchi || true
+    if getent group "$g" >/dev/null 2>&1; then
+      usermod -aG "$g" nazoratchi || true
+    fi
   done
 fi
 install -d -m 0750 "$CONF_DIR" "$STATE_DIR"

@@ -207,7 +207,7 @@ dc() {
   ( cd "$DIR" && docker compose ${PROJECT_NAME:+-p "$PROJECT_NAME"} -f "$FILE" ${COMPOSE_EXTRA:+-f "$COMPOSE_EXTRA"} "$@" )
 }
 
-need() { [ $# -ge 1 ] && [ -n "$1" ] || die "loyiha nomi kerak (appctl list)"; }
+need() { if [ $# -lt 1 ] || [ -z "$1" ]; then die "loyiha nomi kerak (appctl list)"; fi; }
 
 # proj_counts — joriy loyiha (proj_load dan keyin) uchun RUNNING, TOTAL, STATE ni o'rnatadi.
 # STATE: running | partial | stopped | unknown (docker javob bermasa).

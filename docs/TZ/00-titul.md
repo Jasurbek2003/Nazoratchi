@@ -6,7 +6,7 @@
 |---|---|
 | **Hujjat turi** | Texnik topshiriq (Technical Specification) |
 | **Loyiha ishchi nomi** | Nazoratchi (Nazoratchi Monitor) |
-| **Versiya** | 1.18 (loyiha) |
+| **Versiya** | 1.19 (loyiha) |
 | **Sana** | 2026-10-26 |
 | **Holat** | Tasdiqlash uchun taqdim etilgan |
 | **Buyurtmachi / mahsulot egasi** | Jasurbek (Avlo loyihalari egasi) |
@@ -40,6 +40,7 @@
 | 1.16 | 2026-10-28 | Claude | F1 S10 davomi: restore drill (UC-11, FR-BKP-016) F2 dan F1 ga olindi. Aniqlashtirishlar: `restore_drills` jadvali va `/backups/drills` API (9.7), zaxira jadvali/kartasida `drill` bloki — "hech qachon" va muddati o'tgani ko'rinadi (R-117); frontend: karta sahifasida forma va tarix, ro'yxatda drill belgisi (13, SCR-07). AL-081…083 F2 da qoladi |
 | 1.17 | 2026-10-28 | Claude | F1 S10 davomi: AL-081, AL-082, AL-083 (restore drill muddati/natijasi) F2 dan F1 ga olindi, F1 alertlar soni 32 → 35 (12.7.10, 12.9). Aniqlashtirishlar: yangi `drill` state manbasi (`due_soon`, `overdue`, `failed`), faqat faol, ko'chirilgan `expect_daily` loyihalar; AL-081 muddat o'tmaguncha yonadi, o'tgach AL-082 (takroriy shovqin yo'q); hech qachon drill o'tkazilmagan loyiha `overdue`; muvaffaqiyatsiz drill muddat taymerini qayta boshlamaydi; RB-034 to'ldirildi |
 | 1.18 | 2026-10-29 | Claude | F2 S11 (1/2): agent kengaytmalari. Host: inode (FR-HST-008), jarayonlar/fd/swap faolligi/OOM (FR-HST-012), `diskio`, reboot va kernel (FR-HST-009); Docker: `cpu_percent`, `mem_*`, `log_bytes`, `system df` (FR-DKR-003/006/007); mahalliy sertifikat skaneri (FR-TLS-005, certbot deploy-hook + `certs.json`). Aniqlashtirishlar: alohida `reboot` kollektori (5 daqiqa, 7.4.8), `cert_*` da `path` belgisi yo'q, `docker_container_mem_limit_bytes` 0 = cheksiz, docker-socket-proxy `SYSTEM=1`, bir konteyner ~11 qator (kardinallik, 7.4.4). Core: `procs_total`, `threads_total`, `fs_inodes_total` gauge, `*_bytes_per_sec` birligi `bayt/s`. Qolgan S11: o'z-o'zini yangilash (FR-AGT-008), versiya hisoboti, soat farqi |
+| 1.19 | 2026-10-29 | Claude | F2 S11 (2/2): agentning o'z-o'zini yangilashi (FR-AGT-008, NFR-SEC-012, T-U-SEC-11). Aniqlashtirishlar: yangilanish ikki bosqichli (agent yuklab imzoni tekshiradi va `update/` ga qo'yadi; root `ExecStartPre=+` `apply-update` uni noldan qayta tekshirib almashtiradi), chunki agent root emas va `/usr/local/bin` unga yopiq; `VERSION` ham imzolangan `SHA256SUMS` ichida (core versiyani soxtalashtira olmaydi, orqaga qaytarish rad etiladi); tasdiq/rollback (10 daqiqa), qaytarilgan versiya qayta urinilmaydi, o'rov skripti binar umuman ishlamasa ham rollback qiladi; `agent_update_rejected` alohida hodisa emas, `agent_update_rejected_total` hisoblagichi. API: `POST/DELETE /servers/{id}/agent-update` (faqat owner), `servers.agent_update_to`, host voqealari `agent_updated`/`agent_downgraded`/`agent_update_requested`/`agent_update_cancelled`. Reliz: `VERSION`, `MINISIGN_PUBKEY` repo o'zgaruvchisi. Qolgan S11: versiya hisoboti paneli (FR-AGT-011), soat farqi (FR-AGT-012), paneldagi 'Yangilash' tugmasi |
 
 Hujjatga o'zgartirish kiritish tartibi: har bir o'zgarish yangi qator sifatida shu jadvalga
 yoziladi; talab identifikatorlari (FR-..., NFR-...) hech qachon qayta ishlatilmaydi,

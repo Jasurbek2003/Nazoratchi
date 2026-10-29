@@ -99,6 +99,8 @@ Set-Cookie: __Host-nzr_sid=...; HttpOnly; Secure; SameSite=Lax; Path=/
 | POST | `/servers/{id}/pause` | owner, operator | `{reason, until?}` → pauza (FR-HST-016) |
 | POST | `/servers/{id}/resume` | owner, operator | Pauzani bekor qilish |
 | POST | `/servers/{id}/archive` | owner | Arxivga o'tkazish |
+| POST | `/servers/{id}/agent-update` | owner | Agentni eng yangi relizga yangilashni so'rash (FR-AGT-008, 7.7.3). `202` + server (`agent_update_to`). `409`: agent versiyasi noma'lum/dev, arxitektura noma'lum, core'da reliz fayllari yo'q yoki agent allaqachon eng yangi |
+| DELETE | `/servers/{id}/agent-update` | owner | So'rovni bekor qilish (`409`, agar so'ralmagan bo'lsa) |
 | GET | `/servers/{id}/events` | hamma | Reboot, fakt o'zgarishi, yangilanish tarixi |
 | GET | `/servers/{id}/containers` | hamma | Konteynerlar va oxirgi qiymatlari |
 | GET | `/servers/{id}/services` | hamma | systemd servislar |

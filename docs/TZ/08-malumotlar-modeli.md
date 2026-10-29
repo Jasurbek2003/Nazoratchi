@@ -64,6 +64,7 @@ CREATE TABLE servers (
   paused_at        timestamptz,
   paused_by        uuid REFERENCES users(id),
   agent_version    text,
+  agent_update_to  text NOT NULL DEFAULT '',   -- Owner so'ragan nishon versiya (FR-AGT-008); host yetgach tozalanadi
   facts            jsonb NOT NULL DEFAULT '{}',
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now()
@@ -137,7 +138,7 @@ CREATE TABLE host_events (          -- reboot, kernel o'zgardi, agent yangilandi
   id         bigserial PRIMARY KEY,
   server_id  uuid NOT NULL REFERENCES servers(id),
   time       timestamptz NOT NULL DEFAULT now(),
-  type       text NOT NULL,         -- 'reboot','fact_changed','agent_updated','enrolled','paused','resumed'
+  type       text NOT NULL,         -- 'reboot','fact_changed','agent_updated','agent_downgraded','agent_update_requested','agent_update_cancelled','enrolled','paused','resumed'
   data       jsonb NOT NULL DEFAULT '{}'
 );
 CREATE INDEX host_events_idx ON host_events(server_id, time DESC);

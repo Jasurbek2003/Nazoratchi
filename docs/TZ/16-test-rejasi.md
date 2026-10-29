@@ -132,7 +132,7 @@ quyidagilarga alohida e'tibor beradi:
 | T-U-SEC-08 | Log maskalash: token, parol | Logda ko'rinmaydi |
 | T-U-SEC-09 | RBAC matritsasi (3.2) barcha endpointlar | Mos `200/403` |
 | T-U-SEC-10 | Viewer: boshqa loyiha ID | `404` |
-| T-U-SEC-11 | Agent yangilanishi: imzo mos emas | Rad etiladi |
+| T-U-SEC-11 | Agent yangilanishi: imzo mos emas | Rad etiladi. **S11:** `agent/internal/update` birlik testlari (begona kalit, almashtirilgan binar/`VERSION`, orqaga qaytarish, buzilgan staged, symlink) va `deploy/agent/test/update-in-container.sh` e2e (haqiqiy `minisign`, rollback, fallback) |
 | T-U-SEC-12 | Agent yangilanishi: versiya pasayishi | Rad etiladi |
 
 ### 16.2.6. Agent birlik testlari

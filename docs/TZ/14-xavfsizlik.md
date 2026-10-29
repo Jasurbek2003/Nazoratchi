@@ -144,8 +144,10 @@ Talab (NFR-SEC-012, majburiy):
    sozlama orqali ham o'zgartirib bo'lmaydi (kalit almashtirish uchun yangi qo'lda o'rnatish
    yoki ikkita kalitli "o'tish" davri).
 3. Agent `update` buyrug'ini qabul qilganda: faylni yuklaydi → imzoni tekshiradi → **faqat shundan
-   keyin** almashtiradi. Imzo mos kelmasa — rad etadi, `agent_update_rejected` voqeasini yuboradi
-   va logga yozadi.
+   keyin** almashtiradi. Imzo mos kelmasa — rad etadi, `agent_update_rejected_total` hisoblagichini oshiradi
+   (alohida hodisa kanali yo'q) va logga yozadi. **Tekshiruv ikki marta**: agent yuklaganda, so'ng root `apply-update`
+   almashtirishdan oldin noldan (agent yozadigan papka ishonchsiz, 7.7.3). `VERSION` ham `SHA256SUMS` ichida, ya'ni
+   imzolangan: core versiyani o'zboshimcha ko'rsata olmaydi.
 4. Eskiga qaytarishdan himoya (rollback attack): yangilanish versiyasi hozirgidan **katta**
    bo'lishi kerak (yoki aniq `--allow-downgrade` bilan).
 5. `install.sh` (birinchi o'rnatish) core'dan yuklanadi — bu **trust-on-first-use** (TOFU).
@@ -259,7 +261,7 @@ yuklovchi (`safe_load`), sxema validatsiyasi.
   barcha log yozuvlariga qo'llanadi; test: sun'iy token yuborilganda logda ko'rinmasligi.
 - Audit jurnali faqat qo'shiladi; ilova DB roli `UPDATE/DELETE` huquqiga ega emas (8.8).
 - Xavfsizlik hodisalari alohida belgilanadi: `login_failed`, `account_locked`, `token_revoked`,
-  `agent_update_rejected`, `permission_denied`. F1–F2 da ular kunlik/haftalik hisobotda
+  `agent_update_rejected` (metrika `agent_update_rejected_total`), `permission_denied`. F1–F2 da ular kunlik/haftalik hisobotda
   ko'rsatiladi; alohida alert qoidasi F3 da qo'shilishi mumkin (hozir katalogda yo'q).
 
 ## 14.10. Nazoratchi'ning o'z zaxirasi va tiklash

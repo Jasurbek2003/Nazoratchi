@@ -384,6 +384,7 @@ Maqsad: RTO ≤ 1 soat (NFR-REL-006).
 | `deploy-prod` | Qo'lda (`workflow_dispatch`) yoki reliz tasdiqlangach | `ssh` orqali: `appctl deploy Nazoratchi` (15.11) | Avtomatik rollback (15.11.3) |
 
 > **S9:** `release.yml` (teg `v*`): backend/frontend image'lari ghcr.io ga (SBOM, provenance), agent amd64/arm64 binarlari, `SHA256SUMS` va `SHA256SUMS.minisig` (sirlar `MINISIGN_SECRET_KEY`, `MINISIGN_PASSWORD`), GitHub Release. CI ga shellcheck, nginx `-t`, prod compose, frontend image va `install.sh` funksional testi qo'shildi.
+> **S11 (agent yangilanishi):** reliz endi `VERSION` fayli (`X.Y.Z`) ham beradi va u `SHA256SUMS` ichida imzolanadi. Minisign **ochiq** kaliti repo o'zgaruvchisi `MINISIGN_PUBKEY` (Settings -> Variables) dan binarga joylanadi (`-X main.releasePubKey`); o'zgaruvchi yoki `X.Y.Z` shaklidagi teg bo'lmasa reliz to'xtaydi. Reliz fayllari (`VERSION`, `SHA256SUMS`, `SHA256SUMS.minisig`, binarlar) core'ning `AGENT_DIST_DIR` papkasiga qo'yiladi. CI dagi `install.sh` testi endi o'z-o'zini yangilash e2e testini ham ishga tushiradi (`deploy/agent/test.sh`).
 
 ### 15.10.2. Namuna workflow qismi (test-backend)
 

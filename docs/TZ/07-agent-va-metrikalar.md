@@ -242,6 +242,7 @@ ko'rsatkichi bilan ishlaydi; core mahalliy va offsite natijalarni loyiha nomi bo
 | `agent_send_failures_total` | counter | son | — | Yuborish xatolari |
 | `agent_series_dropped` | counter | son | — | Kardinallik chegarasidan tashlangan |
 | `agent_clock_skew_seconds` | gauge | s | — | Core javobidagi vaqt bilan farq |
+| `agent_update_rejected_total` | counter | son | — | Imzo/xesh/versiya tekshiruvidan o'tmagan yangilanishlar (14.5.4 `agent_update_rejected`). Alohida hodisa kanali yo'q, shuning uchun hisoblagich sifatida; alert F2 (S13/S14) |
 | `agent_rss_bytes`, `agent_cpu_percent` | gauge | bayt/% | — | Agentning o'z resurs sarfi |
 
 ### 7.4.10. Faktlar (`facts`) — kam o'zgaradigan ma'lumot
@@ -361,8 +362,8 @@ Xatolar:
 
 Boshqa hech qanday buyruq yo'q. Agent noma'lum buyruqni e'tiborsiz qoldiradi va logga yozadi.
 
-> **Holat (S2):** agent hozircha hech bir buyruqni bajarmaydi, faqat logga yozadi; `set_interval`, `reload_config` va
-> `update` keyingi sprintlarda (sozlamani qayta o'qish `SIGHUP` bilan ishlaydi).
+> **Holat (S11):** agent faqat **`update`** ni bajaradi (7.7.3). `set_interval`, `reload_config` va `collect_now` hali
+> bajarilmaydi, faqat logga yoziladi (sozlamani qayta o'qish `SIGHUP` bilan ishlaydi).
 
 ## 7.6. Sozlama fayli
 
@@ -445,6 +446,7 @@ Wants=network-online.target
 User=nazoratchi
 Group=nazoratchi
 SupplementaryGroups=adm systemd-journal
+ExecStartPre=+/usr/local/lib/nazoratchi/agent-prestart.sh   # 7.7.3: yangilanishni almashtirish/rollback (root)
 ExecStart=/usr/local/bin/nazoratchi-agent run --config /etc/nazoratchi/agent.yaml
 Restart=always
 RestartSec=5
@@ -475,13 +477,38 @@ WantedBy=multi-user.target
 
 ### 7.7.3. O'z-o'zini yangilash
 
-1. Core javobida `update` buyrug'i: `{"type":"update","version":"1.1.0","sha256":"...","url":"/agent/v1/..."}`.
-2. Agent faylni yuklaydi, SHA-256 va imzoni tekshiradi.
-3. Yangi binarni `/usr/local/bin/nazoratchi-agent.new` ga yozadi, joriyni `.old` ga nusxalaydi,
-   `rename` bilan almashtiradi va `systemd` orqali qayta ishga tushadi (`exit 0` + `Restart=always`).
-4. 60 soniyada yangi agent birinchi muvaffaqiyatli paketni yubormasa, `ExecStopPost` skripti
-   `.old` ni qaytaradi (rollback).
-5. Core versiyani qayd etadi; panelda "yangilandi" voqeasi.
+> **S11 da amalga oshirilgan (F2, FR-AGT-008).** Agent root emas va `ProtectSystem=strict` tufayli `/usr/local/bin` ga
+> yoza olmaydi, shuning uchun yangilanish **ikki bosqichli** (avvalgi "agent o'zi almashtiradi" sxemasi o'rniga).
+
+1. Owner panelda (yoki `POST /servers/{id}/agent-update`, 9.3) yangilashni so'raydi. Core `VERSION` (tarqatish papkasi)
+   dan nishon versiyani oladi va host unga yetguncha **har ingest javobiga** buyruq qo'shadi:
+   `{"type":"update","version":"1.1.0","sha256":"...","url":"/agent/v1/nazoratchi-agent-amd64"}`.
+   Bu buyruq faqat **maslahat**: agent `url` va `sha256` ga ishonmaydi.
+2. **Stage (agent, `nazoratchi` foydalanuvchisi).** Manzil faqat `core.url` + qat'iy fayl nomlaridan quriladi (`VERSION`,
+   `SHA256SUMS`, `SHA256SUMS.minisig`, `nazoratchi-agent-<arch>`; yo'naltirishga ergashilmaydi). Agent: (a) `SHA256SUMS`
+   imzosini binarga joylangan minisign ochiq kaliti bilan tekshiradi (`Ed` va `ED`/BLAKE2b, global imzo ham); (b) `VERSION`
+   va binar xeshini **imzolangan** ro'yxat bilan solishtiradi; (c) versiya hozirgidan **qat'iy katta** ekanini tekshiradi;
+   (d) core e'lon qilgan versiya/xesh imzolanganiga mosligini tekshiradi. Faqat shundan keyin `/var/lib/nazoratchi/update/`
+   ga yozadi (oxirida `staged` belgisi) va toza chiqadi (`exit 0`); systemd `Restart=always` bilan qayta ishga tushiradi.
+   Tekshiruvdan o'tmasa: `agent_update_rejected_total` oshadi, sabab logga yoziladi, agent eski binar bilan ishlaydi.
+   Buyruq takrorlansa ham 5 daqiqada bir marta qayta ishlanadi.
+3. **Apply (root).** Unit: `ExecStartPre=+/usr/local/lib/nazoratchi/agent-prestart.sh` -> `nazoratchi-agent apply-update`
+   (o'rnatilgan, root-egalik, ishonchli binar). U staged to'plamni **noldan qayta tekshiradi** (agent yozgan hech narsaga
+   ishonilmaydi: buzilgan agent rootda ixtiyoriy binar o'rnata olmasligi shart), fayllarni `O_NOFOLLOW` bilan bir
+   marta xotiraga o'qiydi (TOCTOU yo'q), joriy binarni `.old` ga saqlaydi, `pending.json` yozadi va binarni atomik
+   (`rename`) almashtiradi. Holat papkasi `/var/lib/nazoratchi-update/` faqat root yozadi; hamma yoza oladigan bo'lsa
+   rad etiladi.
+4. **Tasdiq va rollback.** Yangi agent core'ga birinchi paketni yuborgach `update/confirmed` ga o'z versiyasini yozadi.
+   Keyingi ishga tushishda `apply-update`: tasdiq bor -> `pending` o'chiriladi; tasdiq yo'q va **10 daqiqa ichida**
+   qayta ishga tushgan bo'lsa -> `.old` qaytariladi va `rolled_back.json` yoziladi (shu versiya qayta urinilmaydi, undan
+   yangi reliz kutiladi); 10 daqiqadan keyingi tasdiqsiz qayta ishga tushish (masalan, core uzoq vaqt o'chiq bo'lib, host
+   reboot bo'lgan) oddiy deb hisoblanadi. Yangi binar `apply-update` ni ham ishga tushira olmasa, o'rov skripti
+   (`agent-prestart.sh`) kutilayotgan `pending` bo'lganda `.old` ni o'zi qaytaradi.
+5. Core ingest'da `X-Nazoratchi-Agent` versiyasi o'zgarganini ko'radi: `agent_updated` (yoki rollbackda
+   `agent_downgraded`) voqeasi yoziladi va nishonga yetgan so'rov yopiladi.
+
+Cheklovlar: reliz versiyasi `X.Y.Z` bo'lishi shart (pre-reliz va `dev` yangilanmaydi); S11 dan oldin o'rnatilgan
+xostlarda o'rov skripti va unit yo'q, shuning uchun **bir marta `install.sh` ni qayta ishga tushirish** kerak.
 
 ### 7.7.4. O'chirish
 

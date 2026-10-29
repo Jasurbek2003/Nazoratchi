@@ -217,3 +217,21 @@ def test_token_is_stored_only_as_hash(agent: tuple[Server, str]) -> None:
     _, token = agent
     stored = bytes(AgentToken.objects.get().token_hash)
     assert token.encode() not in stored and len(stored) == 32
+
+
+@pytest.mark.parametrize(
+    ("name", "kind", "unit"),
+    [
+        ("oom_kill_total", "counter", ""),  # haqiqiy hisoblagich
+        ("procs_total", "gauge", ""),  # `_total` bilan tugaydi, lekin joriy son
+        ("threads_total", "gauge", ""),
+        ("fs_inodes_total", "gauge", ""),
+        ("disk_await_ms", "gauge", "ms"),
+        ("disk_write_bytes_per_sec", "gauge", "bayt/s"),
+    ],
+)
+def test_f2_metric_kind_and_unit(name: str, kind: str, unit: str) -> None:
+    from apps.ingest.catalog import kind_for, unit_for
+
+    assert kind_for(name) == kind
+    assert unit_for(name) == unit

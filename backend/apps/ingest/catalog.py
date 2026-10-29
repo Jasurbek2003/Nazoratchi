@@ -55,10 +55,15 @@ ROLLUP_METRICS = frozenset(
 
 _UNIT_BY_SUFFIX = (
     ("_percent", "%"),
+    ("_bytes_per_sec", "bayt/s"),
     ("_bytes", "bayt"),
     ("_per_sec", "1/s"),
     ("_seconds", "s"),
+    ("_ms", "ms"),
 )
+
+# `_total` bilan tugaydigan, lekin hisoblagich (counter) bo'lmagan metrikalar (TZ 7.4): joriy son.
+_GAUGE_TOTALS = frozenset({"procs_total", "threads_total", "fs_inodes_total"})
 
 
 def unit_for(name: str) -> str:
@@ -69,7 +74,7 @@ def unit_for(name: str) -> str:
 
 
 def kind_for(name: str) -> str:
-    return "counter" if name.endswith("_total") else "gauge"
+    return "counter" if name.endswith("_total") and name not in _GAUGE_TOTALS else "gauge"
 
 
 def value_in_range(name: str, value: float) -> bool:

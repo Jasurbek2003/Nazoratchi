@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"nazoratchi/agent/internal/config"
+	"nazoratchi/agent/internal/facts"
 	"nazoratchi/agent/internal/sender"
 	"nazoratchi/agent/internal/update"
 )
@@ -58,4 +59,11 @@ func cmdApplyUpdate(args []string, out io.Writer) error {
 	}
 	fmt.Fprintf(out, "apply-update: %s\n", outcome)
 	return nil
+}
+
+// enrollFacts: birinchi paket (enroll) faktlari, build vaqti bilan.
+func enrollFacts(hostName string) map[string]any {
+	src := facts.Default(hostName)
+	src.BuildTime = buildTime
+	return src.Collect()
 }

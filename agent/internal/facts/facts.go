@@ -20,6 +20,7 @@ type Source struct {
 	BootDir    string // /boot
 	HostName   func() (string, error)
 	NameConfig string // sozlamadagi host.name (bo'sh bo'lsa hostname)
+	BuildTime  string // agent yig'ilgan vaqt (-ldflags), bo'sh bo'lishi mumkin
 }
 
 func Default(nameOverride string) Source {
@@ -28,7 +29,10 @@ func Default(nameOverride string) Source {
 
 // Collect topilgan faktlarni qaytaradi; o'qib bo'lmaganlari tushirib qoldiriladi.
 func (s Source) Collect() map[string]any {
-	f := map[string]any{"arch": runtime.GOARCH}
+	f := map[string]any{"arch": runtime.GOARCH, "go_version": runtime.Version()}
+	if s.BuildTime != "" {
+		f["agent_build_time"] = s.BuildTime
+	}
 	if s.NameConfig != "" {
 		f["hostname"] = s.NameConfig
 	} else if h, err := s.HostName(); err == nil && h != "" {

@@ -40,6 +40,9 @@ var version = "dev"
 // Bo'sh bo'lsa o'z-o'zini yangilash o'chiq (14.5.4: kalit yangilanish orqali ham, sozlama orqali ham o'zgarmaydi).
 var releasePubKey = ""
 
+// buildTime — yig'ilgan vaqt (RFC 3339), `-ldflags "-X main.buildTime=..."`; bo'sh bo'lishi mumkin.
+var buildTime = ""
+
 func main() {
 	args := os.Args[1:]
 	cmd := "run"
@@ -63,7 +66,11 @@ func main() {
 	case "collect":
 		err = cmdCollect(os.Stdout)
 	case "version":
-		fmt.Printf("nazoratchi-agent %s (%s, %s/%s)\n", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("nazoratchi-agent %s (%s, %s/%s)", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		if buildTime != "" {
+			fmt.Printf(" build %s", buildTime)
+		}
+		fmt.Println()
 	default:
 		err = fmt.Errorf("noma'lum buyruq %q (run, enroll, check-config, collect, beat, uninstall, apply-update, version)", cmd)
 	}
@@ -129,7 +136,7 @@ func cmdRun(args []string) error {
 		ctx, cancel := context.WithCancel(context.Background())
 		done := make(chan error, 1)
 		go func() {
-			done <- agent.Run(ctx, agent.Options{Cfg: cfg, Token: token, Version: version, Log: log, Update: newUpdater(cfg, log)})
+			done <- agent.Run(ctx, agent.Options{Cfg: cfg, Token: token, Version: version, Log: log, Update: newUpdater(cfg, log), BuildTime: buildTime})
 		}()
 		select {
 		case err := <-done:
@@ -215,7 +222,7 @@ func cmdEnroll(args []string, out io.Writer) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	res, err := sender.Enroll(ctx, coreURL, ca, 15*time.Second, *token, version, facts.Default(cfg.Host.Name).Collect())
+	res, err := sender.Enroll(ctx, coreURL, ca, 15*time.Second, *token, version, enrollFacts(cfg.Host.Name))
 	if err != nil {
 		return fmt.Errorf("enroll muvaffaqiyatsiz: %w", err)
 	}

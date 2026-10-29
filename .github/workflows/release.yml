@@ -67,11 +67,12 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "xato: teg X.Y.Z bo'lishi kerak (agent yangilanishi pre-relizni qabul qilmaydi): $GITHUB_REF_NAME" >&2; exit 1; }
           [ -n "$MINISIGN_PUBKEY" ] || { echo "xato: MINISIGN_PUBKEY repo o'zgaruvchisi yo'q: agent yangilanishni tekshira olmaydi" >&2; exit 1; }
+          BUILD_TIME="$(git log -1 --format=%cI)" # commit vaqti: bir xil commit har doim bir xil binar beradi
           mkdir -p ../dist
           printf '%s\n' "$VERSION" > ../dist/VERSION
           for arch in amd64 arm64; do
             CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath \
-              -ldflags "-s -w -X main.version=$VERSION -X main.releasePubKey=$MINISIGN_PUBKEY" \
+              -ldflags "-s -w -X main.version=$VERSION -X main.releasePubKey=$MINISIGN_PUBKEY -X main.buildTime=$BUILD_TIME" \
               -o ../dist/nazoratchi-agent-$arch ./cmd/nazoratchi-agent
           done
       - name: SHA256SUMS va minisign imzosi

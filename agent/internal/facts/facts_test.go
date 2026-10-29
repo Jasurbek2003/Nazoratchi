@@ -3,6 +3,7 @@ package facts
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -69,5 +70,21 @@ func TestVersionLess(t *testing.T) {
 	}
 	if !versionLess("6.8.0-147-generic", "6.10.0-1-generic") {
 		t.Fatal("6.8 < 6.10 bo'lishi kerak")
+	}
+}
+
+func TestBuildTimeAndGoVersionAreReported(t *testing.T) {
+	// FR-AGT-011: agent build vaqti, OS va arxitekturani bildiradi (versiya X-Nazoratchi-Agent sarlavhasida).
+	src := Source{Proc: t.TempDir(), HostName: func() (string, error) { return "h", nil }, BuildTime: "2026-11-01T10:00:00Z"}
+	f := src.Collect()
+	if f["agent_build_time"] != "2026-11-01T10:00:00Z" {
+		t.Errorf("agent_build_time = %v", f["agent_build_time"])
+	}
+	if v, _ := f["go_version"].(string); !strings.HasPrefix(v, "go") {
+		t.Errorf("go_version = %v", f["go_version"])
+	}
+	src.BuildTime = ""
+	if _, ok := src.Collect()["agent_build_time"]; ok {
+		t.Error("build vaqti noma'lum bo'lsa fakt yuborilmasligi kerak")
 	}
 }

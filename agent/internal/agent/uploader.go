@@ -35,6 +35,9 @@ type Uploader struct {
 	OnCommand func(sender.Command)
 	// OnFirstSend jarayondagi birinchi muvaffaqiyatli paketdan keyin chaqiriladi (yangilanishni tasdiqlash).
 	OnFirstSend func()
+
+	skewWarnedAt time.Time // soat farqi haqidagi oxirgi ogohlantirish
+	skewed       bool      // hozir farq chegaradan katta
 }
 
 func NewUploader(q *queue.Queue, s *sender.Sender, self *Self, log *slog.Logger) *Uploader {
@@ -75,6 +78,7 @@ func (u *Uploader) Flush(ctx context.Context) time.Duration {
 			u.fails, u.unauth = 0, 0
 			if t, err := time.Parse(time.RFC3339Nano, res.Resp.ServerTime); err == nil {
 				u.self.ClockSkew(t, res.ReceivedAt)
+				u.checkSkew(t.Sub(res.ReceivedAt))
 			}
 			if !u.sentOK {
 				u.sentOK = true
@@ -141,5 +145,29 @@ func (u *Uploader) Run(ctx context.Context, wake <-chan struct{}) {
 		} else {
 			timer = nil
 		}
+	}
+}
+
+const (
+	// MaxClockSkew — shundan katta farq ma'lumot sifatiga ta'sir qiladi (TZ FR-AGT-012, FR-HST-013).
+	MaxClockSkew  = 5 * time.Second
+	skewWarnEvery = 10 * time.Minute
+)
+
+// checkSkew core vaqti bilan farq chegaradan oshsa ogohlantiradi (spam qilmasdan) va tuzalganda xabar beradi.
+// Farq `agent_clock_skew_seconds` metrikasi sifatida ham yuboriladi (panelda belgi chiqadi).
+func (u *Uploader) checkSkew(diff time.Duration) {
+	abs := diff
+	if abs < 0 {
+		abs = -abs
+	}
+	now := u.now()
+	switch {
+	case abs > MaxClockSkew && (!u.skewed || now.Sub(u.skewWarnedAt) >= skewWarnEvery):
+		u.skewed, u.skewWarnedAt = true, now
+		u.log.Warn("agent soati core soatidan farq qiladi", "skew_seconds", diff.Seconds(), "limit_seconds", MaxClockSkew.Seconds())
+	case abs <= MaxClockSkew && u.skewed:
+		u.skewed = false
+		u.log.Info("agent soati core soatiga mos keldi", "skew_seconds", diff.Seconds())
 	}
 }

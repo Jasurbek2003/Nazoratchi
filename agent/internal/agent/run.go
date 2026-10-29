@@ -30,15 +30,16 @@ type Job struct {
 }
 
 type Options struct {
-	Cfg     *config.Config
-	Token   string
-	Version string
-	Log     *slog.Logger
-	Proc    string        // standart /proc
-	Jobs    []Job         // bo'sh bo'lsa sozlamadan quriladi (testlar uchun)
-	Batch   time.Duration // standart BatchEvery
-	Facts   func() map[string]any
-	Update  *update.Updater // nil: yangilanish buyruqlari e'tiborsiz qoldiriladi
+	Cfg       *config.Config
+	Token     string
+	Version   string
+	Log       *slog.Logger
+	Proc      string        // standart /proc
+	Jobs      []Job         // bo'sh bo'lsa sozlamadan quriladi (testlar uchun)
+	Batch     time.Duration // standart BatchEvery
+	Facts     func() map[string]any
+	Update    *update.Updater // nil: yangilanish buyruqlari e'tiborsiz qoldiriladi
+	BuildTime string          // agent yig'ilgan vaqt: faktlarda yuboriladi (FR-AGT-011)
 }
 
 // BuildJobs yoqilgan va amalga oshirilgan kollektorlarni tuzadi; qolganlari `skipped` da.
@@ -136,6 +137,7 @@ func Run(ctx context.Context, o Options) error {
 	if factsFn == nil {
 		src := facts.Default(o.Cfg.Host.Name)
 		src.Proc = proc
+		src.BuildTime = o.BuildTime
 		factsFn = src.Collect
 	}
 	ctx, stop := context.WithCancel(ctx) // yangilanish tayyor bo'lganda agent o'zini toza to'xtatadi

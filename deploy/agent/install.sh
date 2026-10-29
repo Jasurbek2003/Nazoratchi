@@ -81,7 +81,7 @@ DOCKER_ENDPOINT=""
 if [ -z "$ROOT" ] && have docker && docker info >/dev/null 2>&1; then
   if ! docker inspect "$PROXY_NAME" >/dev/null 2>&1; then
     docker run -d --name "$PROXY_NAME" --restart unless-stopped \
-      -e CONTAINERS=1 -e INFO=1 -e POST=0 \
+      -e CONTAINERS=1 -e INFO=1 -e SYSTEM=1 -e POST=0 \
       -v /var/run/docker.sock:/var/run/docker.sock:ro \
       -p 127.0.0.1:2375:2375 "$PROXY_IMAGE" >/dev/null \
       || say "ogohlantirish: docker-socket-proxy ko'tarilmadi (Docker kollektori ishlamaydi)"
@@ -112,6 +112,55 @@ else
 fi
 if [ -z "$ROOT" ]; then chown root:nazoratchi "$TOKEN_FILE"; fi
 chmod 0640 "$TOKEN_FILE"
+
+# 9b. certbot deploy-hook (FR-TLS-005): sertifikat muddatlarini agent o'qiy oladigan faylga yozadi.
+# /etc/letsencrypt/live root uchun yopiq, agent esa root emas; hook faqat ommaviy cert.pem muddatini o'qiydi.
+HOOK="$ROOT/etc/letsencrypt/renewal-hooks/deploy/nazoratchi-certs.sh"
+if [ -d "$ROOT/etc/letsencrypt" ]; then
+  install -d -m 0755 "$(dirname "$HOOK")"
+  cat > "$HOOK" <<'HOOKEOF'
+#!/usr/bin/env bash
+# Nazoratchi: certbot deploy-hook (TZ 7.7.2). Har yangilanishdan keyin, root sifatida, sertifikat
+# muddatlarini /var/lib/nazoratchi/certs.json ga yozadi; agent shu faylni o'qiydi.
+# Nega: /etc/letsencrypt/live odatda root uchun yopiq (0700), agent esa root emas. Bu skript faqat
+# ommaviy `cert.pem` ning tugash sanasini o'qiydi; `privkey*.pem` ga tegmaydi.
+# Sinov uchun: NAZORATCHI_LIVE_DIR, NAZORATCHI_CERTS_JSON, NAZORATCHI_STATE_GROUP.
+set -euo pipefail
+
+LIVE_DIR="${NAZORATCHI_LIVE_DIR:-/etc/letsencrypt/live}"
+OUT="${NAZORATCHI_CERTS_JSON:-/var/lib/nazoratchi/certs.json}"
+GROUP="${NAZORATCHI_STATE_GROUP:-nazoratchi}"
+
+command -v openssl >/dev/null 2>&1 || { echo "openssl topilmadi" >&2; exit 1; }
+[ -d "$LIVE_DIR" ] || exit 0
+
+tmp="$(mktemp "$OUT.XXXXXX")"
+trap 'rm -f "$tmp"' EXIT
+
+first=1
+printf '{"certs":[' > "$tmp"
+for cert in "$LIVE_DIR"/*/cert.pem; do
+  [ -f "$cert" ] || continue
+  name="$(basename "$(dirname "$cert")")"
+  # Agent tomonidagi nom qoidasi bilan bir xil: boshqacha nomni agent baribir tashlaydi.
+  case "$name" in *[!A-Za-z0-9._-]*) continue ;; esac
+  end="$(openssl x509 -enddate -noout -in "$cert" 2>/dev/null)" || continue
+  ts="$(date -u -d "${end#notAfter=}" +%s 2>/dev/null)" || continue
+  [ "$first" -eq 1 ] || printf ',' >> "$tmp"
+  printf '{"name":"%s","not_after":%s}' "$name" "$ts" >> "$tmp"
+  first=0
+done
+printf ']}\n' >> "$tmp"
+
+chmod 0640 "$tmp"
+chgrp "$GROUP" "$tmp" 2>/dev/null || chmod 0644 "$tmp" # guruh yo'q bo'lsa o'qish hammaga (fayl maxfiy emas)
+mv -f "$tmp" "$OUT"
+trap - EXIT
+HOOKEOF
+  chmod 0755 "$HOOK"
+  # Birinchi marta darhol ishga tushiriladi: yangilanishni kutmasdan muddatlar ko'rinadi.
+  NAZORATCHI_LIVE_DIR="$ROOT/etc/letsencrypt/live" NAZORATCHI_CERTS_JSON="$STATE_DIR/certs.json" "$HOOK"     || say "ogohlantirish: sertifikat muddatlari yozilmadi (openssl bormi?)"
+fi
 
 # 10. systemd unit
 install -d -m 0755 "$(dirname "$UNIT")"

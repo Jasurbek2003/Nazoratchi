@@ -6,7 +6,7 @@ set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq >/dev/null
-apt-get install -y -qq minisign curl python3 >/dev/null
+apt-get install -y -qq minisign curl python3 openssl >/dev/null
 
 W=/tmp/w
 rm -rf "$W" && mkdir -p "$W/dist" "$W/root"
@@ -44,6 +44,13 @@ fails=0
 ok() { echo "OK   $*"; }
 bad() { echo "FAIL $*"; fails=$((fails + 1)); }
 
+# certbot tuzilmasi: ommaviy cert.pem + maxfiy privkey.pem (hook faqat birinchisini o'qishi kerak)
+LIVE="$W/root/etc/letsencrypt/live"
+mkdir -p "$LIVE/avlo.ai" "$LIVE/yomon nom"
+for d in "avlo.ai" "yomon nom"; do
+  openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 30 -subj "/CN=t"     -keyout "$LIVE/$d/privkey.pem" -out "$LIVE/$d/cert.pem" 2>/dev/null
+done
+
 # 1. Birinchi o'rnatish
 NAZORATCHI_ENROLL_TOKEN=one-time bash "$W/install.sh" >"$W/out1" 2>&1 || { cat "$W/out1"; bad "birinchi o'rnatish"; }
 [ -x "$W/root/usr/local/bin/nazoratchi-agent" ] && ok "binar o'rnatildi" || bad "binar yo'q"
@@ -53,6 +60,18 @@ grep -q 'url: "http://localhost:8080"' "$W/root/etc/nazoratchi/agent.yaml" && ok
 grep -q "NoNewPrivileges=true" "$W/root/etc/systemd/system/nazoratchi-agent.service" && ok "unit yozildi" || bad "unit"
 "$W/root/usr/local/bin/nazoratchi-agent" check-config --config "$W/root/etc/nazoratchi/agent.yaml" >/dev/null 2>&1 \
   && ok "check-config o'tdi" || bad "check-config"
+
+HOOK="$W/root/etc/letsencrypt/renewal-hooks/deploy/nazoratchi-certs.sh"
+[ -x "$HOOK" ] && ok "certbot deploy-hook o'rnatildi" || bad "deploy-hook yo'q"
+CJ="$W/root/var/lib/nazoratchi/certs.json"
+python3 - "$CJ" <<'PYEOF' && ok "certs.json: muddat to'g'ri, yaroqsiz nom tashlandi" || bad "certs.json noto'g'ri"
+import json, sys, time
+d = json.load(open(sys.argv[1]))["certs"]
+assert [c["name"] for c in d] == ["avlo.ai"], d
+left = (d[0]["not_after"] - time.time()) / 86400
+assert 29 < left < 31, left
+PYEOF
+grep -q "PRIVATE" "$CJ" && bad "certs.json da maxfiy kalit izi bor" || ok "certs.json da maxfiy ma'lumot yo'q"
 
 # 2. Idempotentlik: sozlama va token saqlanadi
 echo "# qo'lda o'zgartirilgan" >> "$W/root/etc/nazoratchi/agent.yaml"

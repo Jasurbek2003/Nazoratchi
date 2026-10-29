@@ -75,6 +75,12 @@ if [ -z "$ROOT" ]; then
   chown nazoratchi:nazoratchi "$STATE_DIR"
   chown root:nazoratchi "$CONF_DIR"
 fi
+# O'z-o'zini yangilash (FR-AGT-008): agent yuklagan fayllar `update/` da (agent yozadi, root hech narsaga
+# ishonmay qayta tekshiradi); rollback holati esa faqat root yoza oladigan papkada (agent o'qiy oladi).
+UPDATE_STATE="$ROOT/var/lib/nazoratchi-update"
+install -d -m 0755 "$UPDATE_STATE"
+install -d -m 0700 "$STATE_DIR/update"
+if [ -z "$ROOT" ]; then chown nazoratchi:nazoratchi "$STATE_DIR/update"; fi
 
 # 7. docker-socket-proxy (faqat GET, faqat loopback)
 DOCKER_ENDPOINT=""
@@ -159,8 +165,31 @@ trap - EXIT
 HOOKEOF
   chmod 0755 "$HOOK"
   # Birinchi marta darhol ishga tushiriladi: yangilanishni kutmasdan muddatlar ko'rinadi.
-  NAZORATCHI_LIVE_DIR="$ROOT/etc/letsencrypt/live" NAZORATCHI_CERTS_JSON="$STATE_DIR/certs.json" "$HOOK"     || say "ogohlantirish: sertifikat muddatlari yozilmadi (openssl bormi?)"
+  NAZORATCHI_LIVE_DIR="$ROOT/etc/letsencrypt/live" NAZORATCHI_CERTS_JSON="$STATE_DIR/certs.json" "$HOOK" \
+    || say "ogohlantirish: sertifikat muddatlari yozilmadi (openssl bormi?)"
 fi
+
+# 9c. Ishga tushishdan oldingi qadam (root): staged yangilanishni almashtiradi yoki tasdiqlanmagan yangisini
+# qaytaradi. O'rov skript shuning uchun kerakki, yangi binar umuman ishlamasa ham eskisi qaytishi shart.
+PRESTART="$ROOT/usr/local/lib/nazoratchi/agent-prestart.sh"
+install -d -m 0755 "$(dirname "$PRESTART")"
+cat > "$PRESTART" <<'PRESTARTEOF'
+#!/bin/sh
+# systemd ExecStartPre=+ (root). Har doim 0 bilan chiqadi: agent ishga tushishi kerak.
+BIN="${NAZORATCHI_BIN:-/usr/local/bin/nazoratchi-agent}"
+STATE="${NAZORATCHI_UPDATE_STATE:-/var/lib/nazoratchi-update}"
+STAGE="${NAZORATCHI_UPDATE_STAGE:-/var/lib/nazoratchi/update}"
+if "$BIN" apply-update --bin "$BIN" --stage "$STAGE" --state "$STATE"; then
+  exit 0
+fi
+# apply-update ishlamadi (yangi binar buzuq bo'lishi mumkin): kutilayotgan yangilanish bo'lsa eskisini qaytaramiz.
+if [ -f "$STATE/pending.json" ] && [ -f "$BIN.old" ]; then
+  echo "agent-prestart: apply-update ishlamadi, $BIN.old qaytarilmoqda" >&2
+  mv -f "$BIN.old" "$BIN" && rm -f "$STATE/pending.json"
+fi
+exit 0
+PRESTARTEOF
+chmod 0755 "$PRESTART"
 
 # 10. systemd unit
 install -d -m 0755 "$(dirname "$UNIT")"
@@ -174,6 +203,7 @@ Wants=network-online.target
 User=nazoratchi
 Group=nazoratchi
 SupplementaryGroups=adm systemd-journal
+ExecStartPre=+/usr/local/lib/nazoratchi/agent-prestart.sh
 ExecStart=/usr/local/bin/nazoratchi-agent run --config /etc/nazoratchi/agent.yaml
 Restart=always
 RestartSec=5

@@ -58,12 +58,20 @@ jobs:
           cache-dependency-path: agent/go.sum
       - name: Binarlarni yig'ish (statik, amd64 va arm64)
         working-directory: agent
+        env:
+          # Ochiq kalit (maxfiy emas) binarga joylanadi: agent o'z-o'zini yangilashda imzoni shu bilan tekshiradi
+          # (14.5.4). Repo o'zgaruvchisi: Settings -> Variables -> MINISIGN_PUBKEY (`.pub` faylning 2-qatori).
+          MINISIGN_PUBKEY: ${{ vars.MINISIGN_PUBKEY }}
         run: |
+          set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "xato: teg X.Y.Z bo'lishi kerak (agent yangilanishi pre-relizni qabul qilmaydi): $GITHUB_REF_NAME" >&2; exit 1; }
+          [ -n "$MINISIGN_PUBKEY" ] || { echo "xato: MINISIGN_PUBKEY repo o'zgaruvchisi yo'q: agent yangilanishni tekshira olmaydi" >&2; exit 1; }
           mkdir -p ../dist
+          printf '%s\n' "$VERSION" > ../dist/VERSION
           for arch in amd64 arm64; do
             CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath \
-              -ldflags "-s -w -X main.version=$VERSION" \
+              -ldflags "-s -w -X main.version=$VERSION -X main.releasePubKey=$MINISIGN_PUBKEY" \
               -o ../dist/nazoratchi-agent-$arch ./cmd/nazoratchi-agent
           done
       - name: SHA256SUMS va minisign imzosi
@@ -74,7 +82,8 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get install -y -qq minisign >/dev/null
-          sha256sum nazoratchi-agent-amd64 nazoratchi-agent-arm64 > SHA256SUMS
+          # VERSION ham imzolanadi: core yoki hujumchi eski imzolangan binarni "yangi" deb ko'rsata olmaydi.
+          sha256sum VERSION nazoratchi-agent-amd64 nazoratchi-agent-arm64 > SHA256SUMS
           umask 077
           printf '%s\n' "$MINISIGN_SECRET_KEY" > "$RUNNER_TEMP/minisign.key"
           printf '%s\n' "$MINISIGN_PASSWORD" | minisign -S -s "$RUNNER_TEMP/minisign.key" -m SHA256SUMS -x SHA256SUMS.minisig

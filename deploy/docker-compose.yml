@@ -53,7 +53,7 @@ services:
     command: ["uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips", "*"]
     ports: ["127.0.0.1:8040:8000"]
     volumes:
-      - ${AGENT_DIST_HOST_DIR:-./agent-dist}:/data/agent:ro   # agent binarlari, SHA256SUMS, SHA256SUMS.minisig
+      - ${AGENT_DIST_HOST_DIR:-./agent-dist}:/data/agent:ro   # agent binarlari, VERSION, SHA256SUMS, SHA256SUMS.minisig
     # image'dagi HEALTHCHECK (/healthz) ishlaydi
 
   # evaluator va prober BITTA nusxada (advisory lock bilan himoyalangan, TZ 6.2)

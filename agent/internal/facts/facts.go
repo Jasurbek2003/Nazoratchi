@@ -40,7 +40,7 @@ func (s Source) Collect() map[string]any {
 	if v := readTrim(filepath.Join(s.Proc, "sys/kernel/osrelease")); v != "" {
 		f["kernel_running"] = v
 	}
-	if v := latestKernel(s.BootDir); v != "" {
+	if v := LatestKernel(s.BootDir); v != "" {
 		f["kernel_latest_installed"] = v
 	}
 	if v := readTrim(filepath.Join(s.Proc, "sys/kernel/random/boot_id")); v != "" {
@@ -128,8 +128,8 @@ func memTotal(path string) int64 {
 
 var digits = regexp.MustCompile(`\d+`)
 
-// latestKernel `/boot/vmlinuz-*` ichidan eng yuqori versiyani qaytaradi (FR-HST-009: reboot kutilmoqda).
-func latestKernel(bootDir string) string {
+// LatestKernel `/boot/vmlinuz-*` ichidan eng yuqori versiyani qaytaradi (FR-HST-009: reboot kutilmoqda).
+func LatestKernel(bootDir string) string {
 	matches, _ := filepath.Glob(filepath.Join(bootDir, "vmlinuz-*"))
 	var versions []string
 	for _, m := range matches {
@@ -140,6 +140,12 @@ func latestKernel(bootDir string) string {
 	}
 	sort.Slice(versions, func(i, j int) bool { return versionLess(versions[i], versions[j]) })
 	return versions[len(versions)-1]
+}
+
+// KernelBehind ishlayotgan kernel o'rnatilgan eng yangisidan eski bo'lsa true (reboot kutilmoqda).
+// Ikkalasidan biri noma'lum bo'lsa false: noto'g'ri signal berishdan ko'ra jim turgan yaxshi.
+func KernelBehind(running, latest string) bool {
+	return running != "" && latest != "" && running != latest && versionLess(running, latest)
 }
 
 // versionLess raqamli qismlarni son sifatida solishtiradi (`6.8.0-9` < `6.8.0-147`).

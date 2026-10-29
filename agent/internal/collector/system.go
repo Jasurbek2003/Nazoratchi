@@ -23,6 +23,10 @@ type System struct {
 	proc     string
 	prev     cpuTimes
 	havePrev bool
+
+	prevSwapIn, prevSwapOut float64 // /proc/vmstat: oldingi o'lchov (tezlik uchun)
+	vmAt                    time.Time
+	haveVm                  bool
 }
 
 func NewSystem(proc string) *System { return &System{proc: proc} }
@@ -47,6 +51,9 @@ func (s *System) Collect(_ context.Context, now time.Time) ([]metric.Sample, err
 	}
 	if err := s.uptime(o); err != nil {
 		errs = append(errs, fmt.Errorf("uptime: %w", err))
+	}
+	if err := s.f2(o, now); err != nil {
+		errs = append(errs, err)
 	}
 	return o.s, errors.Join(errs...)
 }

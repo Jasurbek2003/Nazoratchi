@@ -48,6 +48,12 @@ func BuildJobs(cfg *config.Config, proc string) (jobs []Job, skipped []string) {
 	if c.Disk.Enabled {
 		jobs = append(jobs, Job{collector.NewDisk(proc, c.Disk.IgnoreFSTypes, nil), c.Disk.Interval})
 	}
+	if c.DiskIO.Enabled {
+		jobs = append(jobs, Job{collector.NewDiskIO(proc), c.DiskIO.Interval})
+	}
+	if c.Reboot.Enabled {
+		jobs = append(jobs, Job{collector.NewReboot(proc, "/var/run/reboot-required", "/boot"), c.Reboot.Interval})
+	}
 	if c.Net.Enabled {
 		jobs = append(jobs, Job{collector.NewNet(proc, c.Net.IgnoreIfaces), c.Net.Interval})
 	}
@@ -71,7 +77,7 @@ func BuildJobs(cfg *config.Config, proc string) (jobs []Job, skipped []string) {
 	// Quyidagilar keyingi sprintlarda (B5d+) qo'shiladi.
 	for name, col := range c.All() {
 		switch name {
-		case "system", "disk", "net", "docker", "systemd", "backup":
+		case "system", "disk", "diskio", "reboot", "net", "docker", "systemd", "backup":
 		default:
 			if col.Enabled {
 				skipped = append(skipped, name)

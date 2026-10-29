@@ -14,5 +14,7 @@ func statfs(mountpoint string) (FsStat, error) {
 		Blocks:    st.Blocks,
 		Bfree:     st.Bfree,
 		Bavail:    st.Bavail,
+		Files:     st.Files,
+		Ffree:     st.Ffree,
 	}, nil
 }

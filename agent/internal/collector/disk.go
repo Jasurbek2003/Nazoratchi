@@ -20,6 +20,8 @@ type FsStat struct {
 	Blocks    uint64
 	Bfree     uint64
 	Bavail    uint64
+	Files     uint64 // inode lar jami (0 — fayl tizimi inode hisoblamaydi, masalan btrfs)
+	Ffree     uint64
 }
 
 // StatFunc testlarda almashtiriladi; ishlab chiqarishda `statfs(2)`.
@@ -83,6 +85,12 @@ func (d *Disk) Collect(_ context.Context, now time.Time) ([]metric.Sample, error
 		o.add("fs_avail_bytes", avail, l...)
 		if used+avail > 0 { // `df` ga mos: used / (used + avail)
 			o.add("fs_used_percent", percent(100*used/(used+avail)), l...)
+		}
+		if st.Files > 0 { // FR-HST-008
+			inUsed := float64(st.Files - min(st.Files, st.Ffree))
+			o.add("fs_inodes_total", float64(st.Files), l...)
+			o.add("fs_inodes_used", inUsed, l...)
+			o.add("fs_inodes_used_percent", percent(100*inUsed/float64(st.Files)), l...)
 		}
 		ro := 0.0
 		if m.readonly {

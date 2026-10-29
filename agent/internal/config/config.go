@@ -68,6 +68,7 @@ type Collectors struct {
 	Certs   Collector `yaml:"certs"`
 	SSH     Collector `yaml:"ssh"`
 	Apt     Collector `yaml:"apt"`
+	Reboot  Collector `yaml:"reboot"`
 }
 
 type Queue struct {
@@ -96,6 +97,7 @@ func Default() *Config {
 			Certs:   Collector{Enabled: true, Interval: 6 * time.Hour},
 			SSH:     Collector{Enabled: true, Interval: 5 * time.Minute},
 			Apt:     Collector{Enabled: true, Interval: 24 * time.Hour},
+			Reboot:  Collector{Enabled: true, Interval: 5 * time.Minute},
 		},
 		Queue: Queue{Dir: "/var/lib/nazoratchi/queue", MaxBytes: 20 << 20, MaxAge: 15 * time.Minute},
 		Log:   Log{Level: "info"},
@@ -176,7 +178,7 @@ func (c *Config) Validate() error {
 func (c Collectors) All() map[string]Collector {
 	return map[string]Collector{
 		"system": c.System, "disk": c.Disk, "diskio": c.DiskIO, "net": c.Net, "docker": c.Docker,
-		"systemd": c.Systemd, "backup": c.Backup, "certs": c.Certs, "ssh": c.SSH, "apt": c.Apt,
+		"systemd": c.Systemd, "backup": c.Backup, "certs": c.Certs, "ssh": c.SSH, "apt": c.Apt, "reboot": c.Reboot,
 	}
 }
 

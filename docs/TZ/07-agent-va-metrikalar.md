@@ -70,6 +70,7 @@ mazmunini yubormaydi, hech qanday kiruvchi port ochmaydi, konteynerlarni boshqar
 | `ssh` | 300 s | ha |
 | `facts` | 600 s | ha |
 | `apt` | 86 400 s (kuniga 1) | ha |
+| `reboot` | 300 s | ha |
 
 ## 7.4. Metrikalar katalogi
 
@@ -141,7 +142,8 @@ Quyidagi jadvallarda har metrika uchun: **Nom**, **Tur**, **Birlik**, **Belgilar
 Docker ma'lumoti `docker-socket-proxy` orqali (faqat GET) olinadi. Konteyner nomi `/` siz.
 Kardinallik chegarasi: bitta hostda ≤ 100 konteyner kuzatiladi (oshsa — `docker_series_dropped`).
 
-> **S5 da amalga oshirilgan (F1):** `docker_container_running`, `_restarts_total`, `_uptime_seconds`, `_health`, `_oom_killed`, `docker_containers_running/total` va `docker_container_expected` (quyida). Manzil: `tcp://127.0.0.1:2375` (proksi) yoki `unix:///var/run/docker.sock`. Konteyner holati `/containers/json?all=1`, qolgani har konteyner uchun `/containers/{id}/json` dan (≤ 100 so'rov/30 s). `health` faqat ishlayotgan konteynerda hisoblanadi (Docker to'xtagan konteynerda eski holatni saqlaydi). Resurs sarfi (`cpu_percent`, `mem_*`), `system/df` va log hajmi — F2.
+> **S5 da amalga oshirilgan (F1):** `docker_container_running`, `_restarts_total`, `_uptime_seconds`, `_health`, `_oom_killed`, `docker_containers_running/total` va `docker_container_expected` (quyida). Manzil: `tcp://127.0.0.1:2375` (proksi) yoki `unix:///var/run/docker.sock`. Konteyner holati `/containers/json?all=1`, qolgani har konteyner uchun `/containers/{id}/json` dan (≤ 100 so'rov/30 s). `health` faqat ishlayotgan konteynerda hisoblanadi (Docker to'xtagan konteynerda eski holatni saqlaydi). Resurs sarfi (`cpu_percent`, `mem_*`), `system/df` va log hajmi — **S11 da amalga oshirilgan (F2)**: `GET /containers/{id}/stats?stream=false&one-shot=true` (faqat ishlayotgan konteynerlar; `one-shot` oldingi namunani bermaydi, shuning uchun agent CPU o'lchovini xotirasida saqlab, farqdan foiz hisoblaydi), `GET /system/df` (10 daqiqada bir, 20 s timeout; katta xostda 10 s dan oshishi mumkin), `LogPath` va uning aylantirilgan nusxalari (`<id>-json.log*`) `stat` orqali. Proksi uchun `SYSTEM=1` kerak (`/system/df`); `POST` baribir `403`.
+> **Kardinallik:** har konteyner ~11 qator (F1: 6, F2: 5). Core `MAX_SERIES_PER_HOST = 1000` (7.3.1), shuning uchun amalda ~70 konteynergacha. `max_containers: 100` chegarasi bilan birga qaralsin: 70 dan ortiq konteynerli xostda chegara oshirilishi yoki F2 qatorlari qisqartirilishi kerak.
 > **`docker_container_expected` (0/1):** konteyner kamida 1 soat uzluksiz ishlagan va `RestartPolicy` `no` dan farqli bo'lsa 1 (11.5.1). Bu holat agent **xotirasida** saqlanadi (agent qayta ishga tushsa, qaytadan 1 soat kerak). Kutilgan konteyner ro'yxatdan yo'qolsa 10 daqiqagacha `running=0` yuboriladi, keyin ataylab olib tashlangan deb unutiladi.
 
 | Nom | Tur | Birlik | Belgilar | Manba | Izoh | Faza |
@@ -151,8 +153,8 @@ Kardinallik chegarasi: bitta hostda ≤ 100 konteyner kuzatiladi (oshsa — `doc
 | `docker_container_restarts_total` | counter | son | `container`, `project`, `service` | `RestartCount` | | F1 |
 | `docker_container_uptime_seconds` | gauge | s | `container`, … | `State.StartedAt` | | F1 |
 | `docker_container_cpu_percent` | gauge | % | `container`, … | `GET /containers/{id}/stats?stream=false` | Bir yadro = 100% | F2 |
-| `docker_container_mem_bytes` | gauge | bayt | `container`, … | stats (`memory_stats.usage − cache`) | | F2 |
-| `docker_container_mem_limit_bytes` | gauge | bayt | `container`, … | stats (`memory_stats.limit`) | Limit xost RAM ga teng bo'lsa — "cheksiz" deb belgilanadi | F2 |
+| `docker_container_mem_bytes` | gauge | bayt | `container`, … | stats (`usage` − `total_inactive_file`/`inactive_file`/`cache`) | Sahifa keshi hisobga olinmaydi (cgroup v1 va v2) | F2 |
+| `docker_container_mem_limit_bytes` | gauge | bayt | `container`, … | stats (`memory_stats.limit`) | Limit xost RAM ga (`/info` `MemTotal`) teng yoki cgroup v1 "cheksiz" qiymati bo'lsa **0 = cheksiz** yuboriladi va `mem_percent` hisoblanmaydi | F2 |
 | `docker_container_mem_percent` | gauge | % | `container`, … | hisoblangan | | F2 |
 | `docker_container_net_rx_bytes_per_sec`, `..._tx_...` | gauge | bayt/s | `container`, … | stats | | F3 |
 | `docker_container_blk_read_bytes_per_sec`, `..._write_...` | gauge | bayt/s | `container`, … | stats | | F3 |
@@ -208,12 +210,14 @@ ko'rsatkichi bilan ishlaydi; core mahalliy va offsite natijalarni loyiha nomi bo
 
 | Nom | Tur | Birlik | Belgilar | Manba | Izoh | Faza |
 |---|---|---|---|---|---|---|
-| `cert_not_after_timestamp` | gauge | unix s | `name` (papka nomi), `path` | `/etc/letsencrypt/live/*/cert.pem` + sozlamadagi qo'shimcha yo'llar | Faylni agent o'qiy olishi kerak (7.8) | F2 |
+| `cert_not_after_timestamp` | gauge | unix s | `name` (papka nomi) | `/etc/letsencrypt/live/*/cert.pem` + sozlamadagi qo'shimcha yo'llar yoki `certs.json` (deploy-hook) | **S11 da amalga oshirilgan.** `path` belgisi yuborilmaydi: core ruxsat etilgan belgilar ro'yxatida yo'q (7.3.1) va fayl yo'lini panelga chiqarish ortiqcha. Bir xil nomli ikkinchi fayl `-2` qo'shimchasi bilan keladi. Bevosita o'qish `certs.json` dan ustun. Ikkalasida ham o'qib bo'lmasa — `agent_collector_errors{collector=certs}` | F2 |
 | `cert_days_left` | gauge | kun | `name` | hisoblangan | | F2 |
 | `certbot_last_renew_status` | gauge | 0/1 | — | `/var/log/letsencrypt/letsencrypt.log` oxirgi `renew` natijasi | | F3 |
 | `certbot_last_renew_timestamp` | gauge | unix s | — | xuddi shu | | F3 |
 
-### 7.4.8. `ssh` va `apt` kollektorlari
+### 7.4.8. `ssh`, `apt` va `reboot` kollektorlari
+
+> **S11 da amalga oshirilgan (F2):** `reboot_required*` va `kernel_reboot_pending` alohida **`reboot`** kollektorida (5 daqiqa): `apt` ning standart intervali 24 soat, reboot yoshi va yangi kernel uchun juda sekin. `kernel_reboot_pending` — `uname -r` (`/proc/sys/kernel/osrelease`) va `/boot/vmlinuz-*` ning eng yuqori versiyasi solishtiriladi; ikkalasidan biri noma'lum bo'lsa 0 (noto'g'ri signal bermaslik uchun).
 
 | Nom | Tur | Birlik | Belgilar | Manba | Izoh | Faza |
 |---|---|---|---|---|---|---|
@@ -375,6 +379,7 @@ collectors:
   system:  { enabled: true,  interval: 15s }
   disk:    { enabled: true,  interval: 30s, ignore_fstypes: [tmpfs, overlay, squashfs, devtmpfs] }
   diskio:  { enabled: true,  interval: 15s }
+  reboot:  { enabled: true,  interval: 5m }
   net:     { enabled: true,  interval: 15s, ignore_ifaces: ["lo", "veth*", "br-*", "docker0"] }
   docker:
     enabled: true
@@ -394,6 +399,7 @@ collectors:
     enabled: true
     interval: 6h
     globs: ["/etc/letsencrypt/live/*/cert.pem"]
+    state_file: /var/lib/nazoratchi/certs.json   # certbot deploy-hook yozadi
   ssh:     { enabled: true, interval: 5m }
   apt:     { enabled: true, interval: 24h }
 queue:
@@ -415,7 +421,8 @@ log:
 5. `/usr/local/bin/nazoratchi-agent` ga o'rnatadi (rejim `0755`).
 6. `nazoratchi` tizim foydalanuvchisini yaratadi (`--system --no-create-home --shell /usr/sbin/nologin`),
    `adm`, `systemd-journal` guruhlariga qo'shadi.
-7. Docker mavjud bo'lsa `docker-socket-proxy` konteynerini (`127.0.0.1:2375`) ko'taradi.
+7. Docker mavjud bo'lsa `docker-socket-proxy` konteynerini (`127.0.0.1:2375`; `CONTAINERS=1 INFO=1 SYSTEM=1 POST=0`) ko'taradi. Proksi allaqachon mavjud bo'lsa **o'zgartirilmaydi**: S11 dan oldin o'rnatilgan xostlarda `SYSTEM=1` yo'q, `docker system df` uchun proksini qayta yaratish kerak (`docker rm -f nazoratchi-docker-proxy` va `install.sh` ni qayta ishga tushirish).
+7b. `/etc/letsencrypt` mavjud bo'lsa certbot deploy-hook'ini (`renewal-hooks/deploy/nazoratchi-certs.sh`) o'rnatadi va bir marta ishga tushiradi.
 8. `/etc/nazoratchi/agent.yaml` ni yaratadi (mavjud bo'lsa **o'zgartirmaydi**).
 9. Enroll qiladi (`--token`) → doimiy tokenni `/etc/nazoratchi/token` ga yozadi.
 10. `/etc/systemd/system/nazoratchi-agent.service` ni yozadi, `daemon-reload`, `enable --now`.
@@ -464,7 +471,7 @@ WantedBy=multi-user.target
 > o'qish uchun agent `cert.pem` (ommaviy, maxfiy emas) ni o'qishi kerak, lekin `privkey.pem`
 > ni **hech qachon**. Yechim: `setfacl -m u:nazoratchi:rx /etc/letsencrypt/{live,archive}` va
 > `privkey*.pem` ga `setfacl` **qo'llanmaydi**; yoki root'da ishlaydigan kichik `certbot` ilgagi
-> (`--deploy-hook`) muddatlarni `/var/lib/nazoratchi/certs.json` ga yozadi. Ikkinchisi tavsiya etiladi.
+> (`--deploy-hook`) muddatlarni `/var/lib/nazoratchi/certs.json` ga yozadi. Ikkinchisi tavsiya etiladi va **S11 da amalga oshirilgan**: `install.sh` hook'ni o'rnatadi; hook faqat ommaviy `cert.pem` muddatini `openssl x509 -enddate` bilan o'qiydi (`privkey*.pem` ga tegmaydi) va `/var/lib/nazoratchi/certs.json` ga `{"certs":[{"name":..., "not_after":<unix s>}]}` yozadi (atomik, rejim `0640`, guruh `nazoratchi`). Agent yaroqsiz nomlarni (`[A-Za-z0-9._-]{1,200}` ga mos kelmaganni) va 200 dan ortiq yozuvni tashlaydi.
 
 ### 7.7.3. O'z-o'zini yangilash
 
@@ -488,7 +495,7 @@ WantedBy=multi-user.target
 |---|---|---|
 | `/proc`, `/sys` | Oddiy foydalanuvchi o'qiy oladi | Tizim statistikasi |
 | `journalctl` (SSH loglari) | `systemd-journal` guruhi | Faqat o'qish |
-| Docker ma'lumoti | `docker-socket-proxy` (`127.0.0.1:2375`, GET faqat) | Agent konteyner yarata/to'xtata olmaydi |
+| Docker ma'lumoti | `docker-socket-proxy` (`127.0.0.1:2375`, `CONTAINERS`, `INFO`, `SYSTEM`; `POST` yopiq) | Agent konteyner yarata/to'xtata olmaydi |
 | Docker log hajmi | `/var/lib/docker/containers` — `root` uchun; yechim: Docker API `LogPath` + `stat` o'rniga `docker system df`/`inspect` dan hajm; zarur bo'lsa `setfacl -m u:nazoratchi:rx` papka darajasida (**fayl mazmuni emas**, faqat `stat`) | Mazmunni o'qimaydi |
 | Zaxira papkasi | `ReadOnlyPaths` + `setfacl -R -m u:nazoratchi:rX /opt/applications/backups` | Faqat nomlari/hajmi/`gzip -t` (o'qish) |
 | `appctl.conf` | O'qish (`OFFSITE` bo'sh emasmi) | Faqat bitta bayroq yuboriladi, qiymati (host/manzil) emas |

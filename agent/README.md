@@ -7,7 +7,7 @@ buyruq bajarmaydi; faqat o'lchaydi va core'ga HTTPS orqali yuboradi.
 
 | Bor | Hali yo'q (keyingi sprintlar) |
 |---|---|
-| `system` (CPU, yuklama, xotira, swap, uptime), `disk` (hajm, faqat-o'qish), `net` (bayt/s), `docker` (holat, restartlar, uptime, health, OOM, "kutilgan"), `systemd` (unit active/failed, cron heartbeat), `backup` (`appctl` state.json + papka skaneri, offsite sozlanganmi) | `diskio`, `certs`, `ssh`, `apt`; Docker resurs sarfi; systemd F2 metrikalari (restartlar, uptime); backup F2 (davomiylik, `du`, `gzip -t`, offsite holati) |
+| `system` (CPU, yuklama, xotira, swap, uptime; F2: jarayonlar, fd, swap faolligi, OOM), `disk` (hajm, faqat-o'qish; F2: inode), `diskio` (bayt/s, IOPS, band vaqti, kutish), `reboot` (reboot kerakmi, yangi kernel), `certs` (mahalliy sertifikat muddati: `cert.pem` yoki certbot deploy-hook `certs.json`), `net` (bayt/s), `docker` (holat, restartlar, uptime, health, OOM, "kutilgan"; F2: CPU/xotira, log hajmi, `system df`), `systemd` (unit active/failed, cron heartbeat), `backup` (`appctl` state.json + papka skaneri, offsite sozlanganmi) | `ssh`, `apt`; o'z-o'zini yangilash; systemd F2 metrikalari (restartlar, uptime); backup F2 (davomiylik, `du`, `gzip -t`, offsite holati) |
 | Jadval (interval ±10% jitter, timeout), 15 s paket, diskdagi navbat (20 MB / 15 daq) | Core buyruqlari (`set_interval`, `reload_config`, `update`) bajarilmaydi, faqat logga yoziladi |
 | Yuborish (gzip, backoff, `Retry-After`, 401 da 5 daq), `enroll`, `facts`, o'z metrikalari (`agent_*`) | `install.sh`, systemd unit, imzolangan reliz (S7) |
 

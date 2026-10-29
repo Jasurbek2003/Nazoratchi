@@ -9,8 +9,8 @@ core:
 host:
   name: ""                              # bo'sh bo'lsa hostname
 
-# Amalga oshirilgan: system, disk, net, docker, systemd, backup. Qolganlari sozlanishi mumkin, lekin hozircha ishga
-# tushmaydi (agent buni boshlanishda xabar qiladi): diskio, certs, ssh, apt.
+# Amalga oshirilgan: system, disk, diskio, reboot, certs, net, docker, systemd, backup. Qolganlari sozlanishi mumkin,
+# lekin hozircha ishga tushmaydi (agent buni boshlanishda xabar qiladi): ssh, apt.
 # Docker yo'q serverda `docker.enabled: false` qiling, aks holda har davrda xato hisoblanadi.
 collectors:
   system: { enabled: true, interval: 15s }          # 5s..60s

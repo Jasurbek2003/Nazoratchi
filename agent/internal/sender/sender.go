@@ -33,6 +33,10 @@ type Command struct {
 	Type      string `json:"type"`
 	Collector string `json:"collector,omitempty"`
 	Seconds   int    `json:"seconds,omitempty"`
+	// `update` buyrug'i (TZ 7.7.3): faqat maslahat, haqiqiy qiymatlar imzolangan reliz fayllaridan olinadi.
+	Version string `json:"version,omitempty"`
+	SHA256  string `json:"sha256,omitempty"`
+	URL     string `json:"url,omitempty"`
 }
 
 // Response — `POST /ingest/v1/metrics` javobi (TZ 7.5.2).
@@ -73,6 +77,11 @@ func New(coreURL, token, version, caFile string, timeout time.Duration) (*Sender
 		endpoint: strings.TrimRight(coreURL, "/") + "/ingest/v1/metrics",
 		token:    token, version: version, hc: hc, now: time.Now,
 	}, nil
+}
+
+// NewHTTPClient core'ga so'rov uchun: sozlamadagi CA, TLS >= 1.2, yo'naltirishga ergashmaydi.
+func NewHTTPClient(caFile string, timeout time.Duration) (*http.Client, error) {
+	return newHTTPClient(caFile, timeout)
 }
 
 func newHTTPClient(caFile string, timeout time.Duration) (*http.Client, error) {

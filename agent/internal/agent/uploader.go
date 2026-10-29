@@ -30,6 +30,11 @@ type Uploader struct {
 	sentOK bool // birinchi muvaffaqiyatli paket Info darajasida qayd etilgan (install.sh kutadi)
 	unauth int
 	next   time.Time // shu vaqtgacha urinilmaydi
+
+	// OnCommand core javobidagi har buyruq uchun chaqiriladi (nil bo'lsa e'tiborsiz qoldiriladi).
+	OnCommand func(sender.Command)
+	// OnFirstSend jarayondagi birinchi muvaffaqiyatli paketdan keyin chaqiriladi (yangilanishni tasdiqlash).
+	OnFirstSend func()
 }
 
 func NewUploader(q *queue.Queue, s *sender.Sender, self *Self, log *slog.Logger) *Uploader {
@@ -74,13 +79,19 @@ func (u *Uploader) Flush(ctx context.Context) time.Duration {
 			if !u.sentOK {
 				u.sentOK = true
 				u.log.Info("paket yuborildi (birinchi)", "batch_id", batch.BatchID)
+				if u.OnFirstSend != nil {
+					u.OnFirstSend()
+				}
 			}
 			u.log.Debug("paket yuborildi", "batch_id", batch.BatchID, "accepted", res.Resp.Accepted, "rejected", res.Resp.Rejected)
 			if res.Resp.ClockSkew {
 				u.log.Warn("core agent soatida siljish aniqladi", "batch_id", batch.BatchID)
 			}
 			for _, c := range res.Resp.Commands {
-				// S2: buyruqlar hali bajarilmaydi (set_interval/reload_config/update — keyingi sprintlar).
+				if u.OnCommand != nil {
+					u.OnCommand(c)
+					continue
+				}
 				u.log.Info("core buyrug'i e'tiborsiz qoldirildi", "type", c.Type)
 			}
 		case sender.Drop:

@@ -21,6 +21,8 @@ const (
 	unitPath       = "/etc/systemd/system/nazoratchi-agent.service"
 	configDir      = "/etc/nazoratchi"
 	stateDir       = "/var/lib/nazoratchi"
+	updateStateDir = "/var/lib/nazoratchi-update" // rollback holati (root)
+	prestartDir    = "/usr/local/lib/nazoratchi"  // ExecStartPre o'rovi
 	binDir         = "/usr/local/bin/"
 	serviceName    = "nazoratchi-agent"
 	systemUser     = "nazoratchi"
@@ -92,6 +94,7 @@ func (u *uninstaller) plan() []string {
 		"unit fayli o'chiriladi: " + unitPath,
 		"sozlama va token o'chiriladi: " + configDir,
 		"holat papkasi o'chiriladi: " + stateDir,
+		"yangilanish holati va o'rov skripti o'chiriladi: " + updateStateDir + ", " + prestartDir,
 		"tizim foydalanuvchisi o'chiriladi: " + systemUser,
 	}
 	if u.Purge {
@@ -131,6 +134,8 @@ func (u *uninstaller) Do(ctx context.Context, yes bool) error {
 	}
 	u.removePath(configDir, true)
 	u.removePath(stateDir, true)
+	u.removePath(updateStateDir, true)
+	u.removePath(prestartDir, true)
 
 	if out, err := u.Run.Run(ctx, "userdel", systemUser); err != nil {
 		u.warnf("%s foydalanuvchisini o'chirib bo'lmadi: %v %s", systemUser, err, strings.TrimSpace(string(out)))
@@ -146,6 +151,7 @@ func (u *uninstaller) Do(ctx context.Context, yes bool) error {
 	}
 	// Binar OXIRIDA: undan keyin hech narsa qolmaydi.
 	if binaryRemovable(u.Exe) {
+		u.removePath(u.Exe+".old", false) // o'z-o'zini yangilashdan qolgan zaxira nusxa
 		u.removePath(u.Exe, false)
 	} else {
 		u.warnf("binar %s ichida emas, qo'lda o'chiring: %s", binDir, u.Exe)

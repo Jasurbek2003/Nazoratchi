@@ -6,6 +6,7 @@
 //	nazoratchi-agent collect                         # bir martalik yig'ish (diagnostika), JSON
 //	nazoratchi-agent beat <job> [--dir /var/lib/nazoratchi/heartbeats]  # cron oxirida: heartbeat yozadi
 //	nazoratchi-agent uninstall [--config yo'l] [--purge] [--yes]   # agentni o'chirish (FR-AGT-013)
+//	nazoratchi-agent apply-update                    # systemd ExecStartPre=+ (root): staged yangilanishni almashtirish/rollback
 //	nazoratchi-agent version
 package main
 
@@ -35,6 +36,10 @@ import (
 // version yig'ishda `-ldflags "-X main.version=1.0.0"` bilan o'rnatiladi.
 var version = "dev"
 
+// releasePubKey — reliz minisign ochiq kaliti (base64), yig'ishda `-ldflags "-X main.releasePubKey=..."`.
+// Bo'sh bo'lsa o'z-o'zini yangilash o'chiq (14.5.4: kalit yangilanish orqali ham, sozlama orqali ham o'zgarmaydi).
+var releasePubKey = ""
+
 func main() {
 	args := os.Args[1:]
 	cmd := "run"
@@ -53,12 +58,14 @@ func main() {
 		err = cmdBeat(args, os.Stdout)
 	case "uninstall":
 		err = cmdUninstall(args, os.Stdout)
+	case "apply-update":
+		err = cmdApplyUpdate(args, os.Stderr)
 	case "collect":
 		err = cmdCollect(os.Stdout)
 	case "version":
 		fmt.Printf("nazoratchi-agent %s (%s, %s/%s)\n", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	default:
-		err = fmt.Errorf("noma'lum buyruq %q (run, enroll, check-config, collect, beat, uninstall, version)", cmd)
+		err = fmt.Errorf("noma'lum buyruq %q (run, enroll, check-config, collect, beat, uninstall, apply-update, version)", cmd)
 	}
 	if err != nil {
 		var ee *exitError
@@ -122,7 +129,7 @@ func cmdRun(args []string) error {
 		ctx, cancel := context.WithCancel(context.Background())
 		done := make(chan error, 1)
 		go func() {
-			done <- agent.Run(ctx, agent.Options{Cfg: cfg, Token: token, Version: version, Log: log})
+			done <- agent.Run(ctx, agent.Options{Cfg: cfg, Token: token, Version: version, Log: log, Update: newUpdater(cfg, log)})
 		}()
 		select {
 		case err := <-done:

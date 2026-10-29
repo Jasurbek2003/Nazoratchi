@@ -19,6 +19,7 @@ type Self struct {
 	collectorErrs map[string]uint64
 	durations     map[string]float64
 	sendFailures  uint64
+	updateRejects uint64
 	clockSkew     float64
 	haveSkew      bool
 }
@@ -34,6 +35,13 @@ func (s *Self) CollectorRun(name string, took time.Duration, err error) {
 	if err != nil {
 		s.collectorErrs[name]++
 	}
+}
+
+// UpdateRejected: imzo/xesh/versiya tekshiruvidan o'tmagan yangilanish (TZ 14.5.4: agent_update_rejected).
+func (s *Self) UpdateRejected() {
+	s.mu.Lock()
+	s.updateRejects++
+	s.mu.Unlock()
 }
 
 func (s *Self) SendFailed() {
@@ -61,6 +69,7 @@ func (s *Self) Samples(now time.Time, queueFiles int, queueBytes int64, seriesDr
 	}
 	s.mu.Lock()
 	out = append(out, metric.Sample{N: "agent_send_failures_total", T: ms, V: float64(s.sendFailures)})
+	out = append(out, metric.Sample{N: "agent_update_rejected_total", T: ms, V: float64(s.updateRejects)})
 	if s.haveSkew {
 		out = append(out, metric.Sample{N: "agent_clock_skew_seconds", T: ms, V: s.clockSkew})
 	}

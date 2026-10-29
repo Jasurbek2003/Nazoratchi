@@ -17,6 +17,7 @@ import (
 	"nazoratchi/agent/internal/metric"
 	"nazoratchi/agent/internal/queue"
 	"nazoratchi/agent/internal/sender"
+	"nazoratchi/agent/internal/update"
 )
 
 // BatchEvery — namunalar shuncha vaqt yig'ilib, bitta paketga o'raladi (TZ 7.2 Batcher).
@@ -37,6 +38,7 @@ type Options struct {
 	Jobs    []Job         // bo'sh bo'lsa sozlamadan quriladi (testlar uchun)
 	Batch   time.Duration // standart BatchEvery
 	Facts   func() map[string]any
+	Update  *update.Updater // nil: yangilanish buyruqlari e'tiborsiz qoldiriladi
 }
 
 // BuildJobs yoqilgan va amalga oshirilgan kollektorlarni tuzadi; qolganlari `skipped` da.
@@ -136,12 +138,27 @@ func Run(ctx context.Context, o Options) error {
 		src.Proc = proc
 		factsFn = src.Collect
 	}
+	ctx, stop := context.WithCancel(ctx) // yangilanish tayyor bo'lganda agent o'zini toza to'xtatadi
+	defer stop()
 	self := NewSelf(o.Version, proc)
 	r := &runner{
 		log: o.Log, q: q, self: self, now: time.Now,
 		batcher: NewBatcher(time.Now(), factsFn),
 		up:      NewUploader(q, s, self, o.Log),
 		wake:    make(chan struct{}, 1),
+	}
+	if o.Update != nil {
+		ur := &updateRunner{
+			now: time.Now, updater: o.Update, self: self, stop: stop,
+			logf: o.Log.Info, warnf: o.Log.Warn, errorf: o.Log.Error,
+		}
+		defer ur.wg.Wait()
+		r.up.OnCommand = func(c sender.Command) { ur.handle(ctx, c) }
+		r.up.OnFirstSend = func() {
+			if err := o.Update.Confirm(); err != nil {
+				o.Log.Warn("yangilanish tasdig'i yozilmadi", "error", err)
+			}
+		}
 	}
 	r.log.Info("agent ishga tushdi", "version", o.Version, "core", o.Cfg.Core.URL, "collectors", len(jobs))
 

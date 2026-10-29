@@ -11,10 +11,11 @@ class ServerSerializer(serializers.ModelSerializer[Server]):
         fields = [
             "id", "name", "provider", "public_ipv4", "public_ipv6", "role", "tags", "location",
             "monthly_cost_usd", "notes", "status", "last_seen_at", "paused_at", "paused_until",
-            "pause_reason", "agent_version", "facts", "created_at", "updated_at",
+            "pause_reason", "agent_version", "agent_update_to", "facts", "created_at", "updated_at",
         ]  # fmt: skip
         read_only_fields = [
-            "id", "status", "last_seen_at", "paused_at", "paused_until", "pause_reason", "agent_version", "facts",
+            "id", "status", "last_seen_at", "paused_at", "paused_until", "pause_reason", "agent_version",
+            "agent_update_to", "facts",
             "created_at", "updated_at",
         ]  # fmt: skip
         extra_kwargs: dict[str, Any] = {

@@ -57,6 +57,8 @@ class Server(models.Model):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     agent_version = models.CharField(max_length=40, blank=True)
+    # Owner so'ragan agent yangilanishi (FR-AGT-008): nishon versiya; host shu versiyaga yetgach tozalanadi.
+    agent_update_to = models.CharField(max_length=40, blank=True, default="")
     facts = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)

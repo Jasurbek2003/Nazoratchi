@@ -18,6 +18,11 @@ urlpatterns = [
         "servers/<uuid:pk>/events", server_actions.ServerEventsView.as_view(), name="server-events"
     ),
     path(
+        "servers/<uuid:pk>/agent-update",
+        server_actions.ServerAgentUpdateView.as_view(),
+        name="server-agent-update",
+    ),
+    path(
         "servers/<uuid:pk>/tokens", server_actions.ServerTokensView.as_view(), name="server-tokens"
     ),
     path(

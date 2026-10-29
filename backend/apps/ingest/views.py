@@ -15,6 +15,7 @@ from apps.audit.services import record
 from apps.core import ratelimit
 from apps.core.http import error_response
 from apps.core.net import client_ip
+from apps.registry import agent_update
 from apps.registry.models import AgentToken, EnrollToken, HostEvent, Server, hash_token
 
 from .catalog import MAX_BODY_BYTES
@@ -105,10 +106,12 @@ def ingest_metrics(request: HttpRequest) -> JsonResponse:
         server.status = (
             Server.Status.ONLINE
         )  # pauza/arxiv holati ma'lumot kelishi bilan o'zgarmaydi
+    previous_version = server.agent_version
     server.agent_version = request.headers.get("X-Nazoratchi-Agent", "")[:40]
     if facts:
         server.facts = {**server.facts, **facts}
     server.save(update_fields=["last_seen_at", "status", "agent_version", "facts"])
+    commands = agent_update.on_ingest(server, previous_version)
     # Token oxirgi ishlatilishi: har so'rovda yozmaslik uchun 1 daqiqada bir marta.
     if agent_token.last_used_at is None or now - agent_token.last_used_at > timedelta(minutes=1):
         agent_token.last_used_at = now
@@ -126,7 +129,7 @@ def ingest_metrics(request: HttpRequest) -> JsonResponse:
             "clock_skew": result.clock_skew,
             "server_time": now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
             "interval_seconds": INTERVAL_SECONDS,
-            "commands": [],
+            "commands": commands,
         }
     )
 

@@ -17,6 +17,7 @@ from apps.audit.services import record
 from apps.core.http import error_response
 from apps.core.permissions import roles
 
+from . import agent_update
 from .models import AgentToken, HostEvent, Server
 from .serializers import ServerSerializer
 
@@ -188,3 +189,57 @@ class ServerTokenDetailView(APIView):
             after={"server": str(pk)},
         )
         return HttpResponse(status=204)
+
+
+class ServerAgentUpdateView(APIView):
+    """Agentni yangilash (FR-AGT-008): faqat Owner. POST — so'rash, DELETE — bekor qilish.
+
+    Core `update` buyrug'ini ingest javobiga qo'shadi; agent imzoni o'zi tekshiradi (14.5.4). Host nishon
+    versiyaga yetgach so'rov o'zi tugaydi va `agent_updated` voqeasi yoziladi.
+    """
+
+    permission_classes = OWNER
+
+    def post(self, request: Request, pk: str) -> HttpResponse:
+        server = _server(pk)
+        if server is None:
+            return error_response("not_found", "Server topilmadi.", 404)
+        target, reason = agent_update.request_update(server)
+        if target is None:
+            return error_response("conflict", reason or "Yangilab bo'lmaydi.", 409)
+        server.agent_update_to = target
+        server.save(update_fields=["agent_update_to"])
+        HostEvent.objects.create(
+            server=server,
+            type="agent_update_requested",
+            data={"from": server.agent_version, "to": target, "by": _login(request)},
+        )
+        record(
+            "server.agent_update",
+            request=request._request,
+            object_type="server",
+            object_id=server.pk,
+            after={"to": target},
+        )
+        return Response(ServerSerializer(server).data, status=202)
+
+    def delete(self, request: Request, pk: str) -> HttpResponse:
+        server = _server(pk)
+        if server is None:
+            return error_response("not_found", "Server topilmadi.", 404)
+        if not server.agent_update_to:
+            return error_response("conflict", "Yangilanish so'ralmagan.", 409)
+        cancelled, server.agent_update_to = server.agent_update_to, ""
+        server.save(update_fields=["agent_update_to"])
+        HostEvent.objects.create(
+            server=server,
+            type="agent_update_cancelled",
+            data={"to": cancelled, "by": _login(request)},
+        )
+        record(
+            "server.agent_update_cancel",
+            request=request._request,
+            object_type="server",
+            object_id=server.pk,
+        )
+        return Response(ServerSerializer(server).data)

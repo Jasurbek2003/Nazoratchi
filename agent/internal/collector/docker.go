@@ -36,6 +36,11 @@ type Docker struct {
 
 	mu       sync.Mutex
 	expected map[string]*expectedContainer // TZ 11.5.1: "kutilgan" konteynerlar (xotirada)
+
+	prevCPU   map[string]cpuPrev // konteyner ID -> oldingi CPU o'lchovi (F2)
+	hostMem   uint64
+	hostMemAt time.Time
+	dfAt      time.Time
 }
 
 // expectedContainer — kamida ExpectedAfter uzluksiz ishlagan va RestartPolicy `no` bo'lmagan konteyner.
@@ -58,7 +63,7 @@ func NewDocker(endpoint string, maxContainers int) (*Docker, error) {
 	if err != nil {
 		return nil, fmt.Errorf("docker endpoint: %w", err)
 	}
-	d := &Docker{max: maxContainers, expected: map[string]*expectedContainer{}}
+	d := &Docker{max: maxContainers, expected: map[string]*expectedContainer{}, prevCPU: map[string]cpuPrev{}}
 	switch u.Scheme {
 	case "tcp", "http":
 		if u.Host == "" {
@@ -94,7 +99,8 @@ type dockerListItem struct {
 }
 
 type dockerInspect struct {
-	RestartCount int `json:"RestartCount"`
+	RestartCount int    `json:"RestartCount"`
+	LogPath      string `json:"LogPath"`
 	HostConfig   struct {
 		RestartPolicy struct {
 			Name string `json:"Name"`
@@ -159,8 +165,11 @@ func (d *Docker) Collect(ctx context.Context, now time.Time) ([]metric.Sample, e
 	defer d.mu.Unlock()
 	present := map[string]bool{}
 	var errs []error
+	var hostMem *uint64 // xost RAM faqat kerak bo'lganda so'raladi
+	ids := map[string]bool{}
 	for _, c := range list {
 		present[firstName(c)] = true
+		ids[c.ID] = true
 		labels := []string{
 			"container", trunc(firstName(c)),
 			"project", trunc(c.Labels["com.docker.compose.project"]),
@@ -202,6 +211,19 @@ func (d *Docker) Collect(ctx context.Context, now time.Time) ([]metric.Sample, e
 		}
 		o.add("docker_container_oom_killed", oom, labels...)
 
+		if n, ok := logBytes(info.LogPath); ok {
+			o.add("docker_container_log_bytes", float64(n), labels...)
+		}
+		if info.State.Running {
+			if hostMem == nil {
+				m := d.hostMemory(ctx, now)
+				hostMem = &m
+			}
+			if err := d.resources(ctx, o, c.ID, labels, *hostMem); err != nil {
+				errs = append(errs, fmt.Errorf("%s stats: %w", firstName(c), err))
+			}
+		}
+
 		policy := info.HostConfig.RestartPolicy.Name
 		if info.State.Running && policy != "" && policy != "no" {
 			if started, err := time.Parse(time.RFC3339Nano, info.State.StartedAt); err == nil && now.Sub(started) >= ExpectedAfter {
@@ -226,6 +248,14 @@ func (d *Docker) Collect(ctx context.Context, now time.Time) ([]metric.Sample, e
 		}
 		o.add("docker_container_running", 0, e.labels...)
 		o.add("docker_container_expected", 1, e.labels...)
+	}
+	for id := range d.prevCPU { // yo'q bo'lgan konteynerlarning eski CPU o'lchovi to'planib qolmasin
+		if !ids[id] {
+			delete(d.prevCPU, id)
+		}
+	}
+	if err := d.systemDF(ctx, o, now); err != nil {
+		errs = append(errs, err)
 	}
 	return o.s, errors.Join(errs...)
 }

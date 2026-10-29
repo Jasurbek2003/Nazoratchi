@@ -23,6 +23,23 @@ type fakeContainer struct {
 	oom                               bool
 	inspectFails                      bool
 	policy                            string // bo'sh = "unless-stopped"
+
+	// F2: stats va log (testlar kerak bo'lganda to'ldiradi; bo'sh bo'lsa nollar)
+	cpuTotal, cpuSystem          uint64
+	memUsage, memLimit, inactive uint64
+	logPath                      string
+	statsFails                   bool
+}
+
+// hostMemTotal — soxta xostning RAM hajmi (/info).
+const hostMemTotal = 8 << 30
+
+var fakeDF = map[string]any{
+	"LayersSize": 1000,
+	"Images":     []map[string]any{{"Size": 700}, {"Size": 600}}, // umumiy qatlam: LayersSize ishlatilishi kerak
+	"Containers": []map[string]any{{"SizeRw": 10}, {"SizeRw": 5}},
+	"Volumes":    []map[string]any{{"UsageData": map[string]any{"Size": 300}}, {"UsageData": map[string]any{"Size": -1}}},
+	"BuildCache": []map[string]any{{"Size": 40}, {"Size": 2}},
 }
 
 func dockerHandler(cs []fakeContainer, now time.Time) http.Handler {
@@ -43,8 +60,41 @@ func dockerHandler(cs []fakeContainer, now time.Time) http.Handler {
 		}
 		_ = json.NewEncoder(w).Encode(out)
 	})
+	mux.HandleFunc("/info", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"MemTotal": hostMemTotal})
+	})
+	mux.HandleFunc("/system/df", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(fakeDF)
+	})
 	mux.HandleFunc("/containers/", func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/containers/"), "/json")
+		rest := strings.TrimPrefix(r.URL.Path, "/containers/")
+		if id, ok := strings.CutSuffix(rest, "/stats"); ok {
+			for _, c := range cs {
+				if c.id != id {
+					continue
+				}
+				if c.statsFails {
+					http.Error(w, "xato", 500)
+					return
+				}
+				if r.URL.Query().Get("stream") != "false" || r.URL.Query().Get("one-shot") != "true" {
+					http.Error(w, "stream=false&one-shot=true kerak", 400)
+					return
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"cpu_stats": map[string]any{
+						"cpu_usage": map[string]any{"total_usage": c.cpuTotal}, "system_cpu_usage": c.cpuSystem, "online_cpus": 2,
+					},
+					"memory_stats": map[string]any{
+						"usage": c.memUsage, "limit": c.memLimit, "stats": map[string]any{"inactive_file": c.inactive},
+					},
+				})
+				return
+			}
+			http.NotFound(w, r)
+			return
+		}
+		id := strings.TrimSuffix(rest, "/json")
 		for _, c := range cs {
 			if c.id != id {
 				continue
@@ -65,7 +115,7 @@ func dockerHandler(cs []fakeContainer, now time.Time) http.Handler {
 				policy = "unless-stopped"
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"RestartCount": c.restarts, "State": state,
+				"RestartCount": c.restarts, "State": state, "LogPath": c.logPath,
 				"HostConfig": map[string]any{"RestartPolicy": map[string]any{"Name": policy}},
 			})
 			return

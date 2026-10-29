@@ -55,6 +55,7 @@ type Collector struct {
 	AppctlConf    string        `yaml:"appctl_conf"`
 	Globs         []string      `yaml:"globs"`
 	HeartbeatsDir string        `yaml:"heartbeats_dir"`
+	StateFile     string        `yaml:"state_file"` // certs: deploy-hook yozadigan muddatlar fayli
 }
 
 type Collectors struct {
@@ -94,7 +95,7 @@ func Default() *Config {
 			Docker:  Collector{Enabled: true, Interval: 30 * time.Second, Endpoint: "tcp://127.0.0.1:2375", MaxContainers: 100},
 			Systemd: Collector{Enabled: true, Interval: 30 * time.Second, HeartbeatsDir: collector.DefaultHeartbeatsDir},
 			Backup:  Collector{Enabled: true, Interval: 300 * time.Second, Root: collector.DefaultBackupRoot, AppctlConf: collector.DefaultAppctlConf},
-			Certs:   Collector{Enabled: true, Interval: 6 * time.Hour},
+			Certs:   Collector{Enabled: true, Interval: 6 * time.Hour, Globs: []string{collector.DefaultCertGlob}, StateFile: collector.DefaultCertsJSON},
 			SSH:     Collector{Enabled: true, Interval: 5 * time.Minute},
 			Apt:     Collector{Enabled: true, Interval: 24 * time.Hour},
 			Reboot:  Collector{Enabled: true, Interval: 5 * time.Minute},

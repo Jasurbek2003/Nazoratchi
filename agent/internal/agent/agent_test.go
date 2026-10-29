@@ -481,39 +481,39 @@ func TestRunRejectsNoCollectors(t *testing.T) {
 
 func TestBuildJobsSkipsUnimplemented(t *testing.T) {
 	jobs, skipped := BuildJobs(config.Default(), "/proc")
-	if len(jobs) != 8 {
-		t.Fatalf("system, disk, diskio, reboot, net, docker, systemd, backup kutilgan: %d", len(jobs))
+	if len(jobs) != 9 {
+		t.Fatalf("system, disk, diskio, reboot, certs, net, docker, systemd, backup kutilgan: %d", len(jobs))
 	}
 	names := map[string]bool{}
 	for _, j := range jobs {
 		names[j.C.Name()] = true
 	}
-	for _, n := range []string{"system", "disk", "diskio", "reboot", "net", "docker", "systemd", "backup"} {
+	for _, n := range []string{"system", "disk", "diskio", "reboot", "certs", "net", "docker", "systemd", "backup"} {
 		if !names[n] {
 			t.Fatalf("%s yo'q: %v", n, names)
 		}
 	}
-	if strings.Join(skipped, ",") != "apt,certs,ssh" { // saralangan
+	if strings.Join(skipped, ",") != "apt,ssh" { // saralangan
 		t.Fatalf("o'tkazib yuborilganlar: %v", skipped)
 	}
 
 	bad := config.Default()
 	bad.Collectors.Docker.Endpoint = "ftp://x"
 	jobs, skipped = BuildJobs(bad, "/proc")
-	if len(jobs) != 7 || !strings.Contains(strings.Join(skipped, ","), "docker (") {
+	if len(jobs) != 8 || !strings.Contains(strings.Join(skipped, ","), "docker (") {
 		t.Fatalf("noto'g'ri docker endpoint o'tkazib yuborilishi kerak: %d %v", len(jobs), skipped)
 	}
 
 	off := config.Default()
 	off.Collectors.Systemd.Enabled, off.Collectors.Backup.Enabled = false, false
-	if jobs, _ = BuildJobs(off, "/proc"); len(jobs) != 6 {
+	if jobs, _ = BuildJobs(off, "/proc"); len(jobs) != 7 {
 		t.Fatalf("o'chirilgan kollektorlar job bo'lmasligi kerak: %d", len(jobs))
 	}
 
 	badUnit := config.Default() // Validate'dan o'tmagan bo'lsa ham systemd ishga tushmaydi
 	badUnit.Collectors.Systemd.Units = []string{"--all"}
 	jobs, skipped = BuildJobs(badUnit, "/proc")
-	if len(jobs) != 7 || !strings.Contains(strings.Join(skipped, ","), "systemd (") {
+	if len(jobs) != 8 || !strings.Contains(strings.Join(skipped, ","), "systemd (") {
 		t.Fatalf("yaroqsiz unit: %d %v", len(jobs), skipped)
 	}
 }

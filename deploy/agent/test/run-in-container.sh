@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# `shart && ok ... || bad ...`: ok va bad hech qachon xato qaytarmaydi, shuning uchun SC2015 xavfi yo'q.
+# shellcheck disable=SC2015
 # install.sh funksional testi (Debian konteyner ichida, NAZORATCHI_ROOT rejimi). Ishga tushirish: ../test.sh
 set -euo pipefail
 
@@ -8,7 +10,7 @@ apt-get install -y -qq minisign curl python3 >/dev/null
 
 W=/tmp/w
 rm -rf "$W" && mkdir -p "$W/dist" "$W/root"
-cd /src/agent && CGO_ENABLED=0 go build -o "$W/dist/nazoratchi-agent-amd64" ./cmd/nazoratchi-agent
+cd /src/agent && CGO_ENABLED=0 go build -buildvcs=false -o "$W/dist/nazoratchi-agent-amd64" ./cmd/nazoratchi-agent
 cd "$W/dist"
 sha256sum nazoratchi-agent-amd64 > SHA256SUMS
 minisign -G -W -p "$W/pub" -s "$W/sec" >/dev/null
@@ -79,4 +81,9 @@ if bash /src/deploy/agent/install.sh >"$W/out6" 2>&1; then bad "shablon (almasht
   grep -q "core'dan oling" "$W/out6" && ok "almashtirilmagan shablon rad etildi" || bad "shablon xabari"; fi
 
 echo "---"
-[ "$fails" -eq 0 ] && echo "HAMMASI O'TDI" || { echo "XATOLAR: $fails"; exit 1; }
+if [ "$fails" -eq 0 ]; then
+  echo "HAMMASI O'TDI"
+else
+  echo "XATOLAR: $fails"
+  exit 1
+fi

@@ -137,7 +137,7 @@ jobs:
       - run: uv run pip-audit
       - run: uv sync --frozen
         working-directory: prototype/agent
-      - run: uv run pip-audit
+      - run: uv run --with pip-audit pip-audit
         working-directory: prototype/agent
       - uses: actions/setup-go@v5
         with:
